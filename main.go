@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strings"
 	"time"
 )
 
@@ -118,17 +119,71 @@ func Adjacencies(entries []Entry, tagmap map[string][]string) map[string]map[str
 	return adjacencies
 }
 
+func Grep(entries []Entry, tagmap map[string][]string, query string) map[string][]string {
+	for _, e := range entries {
+		if strings.Contains(strings.ToLower(e.content), query) {
+			if !slices.Contains(tagmap[query], e.filename) {
+				tagmap[query] = append(tagmap[query], e.filename)
+			}
+		}
+	}
+	return tagmap
+}
+
+func Collect(
+	tagmap map[string][]string,
+	adjacencies map[string]map[string]bool,
+	query string,
+) map[string][]string {
+
+	collection := map[string][]string{}
+	collection["files"] = append(collection["files"], tagmap[query]...)
+	for tag, _ := range adjacencies[query] {
+		collection["adjacencies"] = append(collection["adjacencies"], tag)
+	}
+
+	return collection
+}
+
+func PrintCollection(collection map[string][]string, query string, grep bool) {
+	fmt.Println("[tag]")
+	fmt.Println(query)
+	fmt.Println()
+
+	s := "[files]"
+	if grep {
+		s = "[files:grep]"
+	}
+	fmt.Println(s)
+	for _, f := range collection["files"] {
+		fmt.Println(f)
+	}
+	fmt.Println()
+
+	fmt.Println("[tags]")
+	for _, t := range collection["adjacencies"] {
+		fmt.Println(t)
+	}
+}
+
 func main() {
-	var query = flag.String("query", "science", "query")
+	var query = flag.String("query", "", "query")
+	var grep = flag.Bool("grep", false, "whether to show files containing the query.")
 	flag.Parse()
+
+	// take first positional arg as query:
+	// NOTE: all flags must precede: gag --grep arg
+	if *query == "" && len(flag.Args()) > 0 {
+		*query = flag.Args()[0]
+	}
 
 	entries := GetEntries(PATTERN)
 	tagmap := MakeTagmap(entries)
-	for _, f := range tagmap[*query] {
-		fmt.Println(f)
+	if *grep {
+		tagmap = Grep(entries, tagmap, *query)
 	}
 	adjacencies := Adjacencies(entries, tagmap)
-	for t, _ := range adjacencies[*query] {
-		fmt.Println(t)
-	}
+
+	collection := Collect(tagmap, adjacencies, *query)
+	PrintCollection(collection, *query, *grep)
 }
