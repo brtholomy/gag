@@ -27,6 +27,10 @@ type Term struct {
 	adjacencies []string
 }
 
+func ParseQuery(query string) []string {
+	return strings.Split(query, ",")
+}
+
 func GetEntries(pattern string) []Entry {
 	res := []Entry{}
 	files, err := filepath.Glob(pattern)
@@ -119,11 +123,15 @@ func Adjacencies(entries []Entry, tagmap map[string][]string) map[string]map[str
 	return adjacencies
 }
 
-func Grep(entries []Entry, tagmap map[string][]string, query string) map[string][]string {
+func Grep(entries []Entry, tagmap map[string][]string, queries []string) map[string][]string {
 	for _, e := range entries {
-		if strings.Contains(strings.ToLower(e.content), query) {
-			if !slices.Contains(tagmap[query], e.filename) {
-				tagmap[query] = append(tagmap[query], e.filename)
+		for _, query := range queries {
+			// TODO: in the presence of multiple query strings, this is an OR.
+			// Should be an AND.
+			if strings.Contains(strings.ToLower(e.content), query) {
+				if !slices.Contains(tagmap[query], e.filename) {
+					tagmap[query] = append(tagmap[query], e.filename)
+				}
 			}
 		}
 	}
@@ -133,21 +141,30 @@ func Grep(entries []Entry, tagmap map[string][]string, query string) map[string]
 func Collect(
 	tagmap map[string][]string,
 	adjacencies map[string]map[string]bool,
-	query string,
-) map[string][]string {
+	queries []string,
+) map[string]map[string]bool {
 
-	collection := map[string][]string{}
-	collection["files"] = append(collection["files"], tagmap[query]...)
-	for tag, _ := range adjacencies[query] {
-		collection["adjacencies"] = append(collection["adjacencies"], tag)
+	collection := map[string]map[string]bool{}
+	collection["files"] = map[string]bool{}
+	collection["adjacencies"] = map[string]bool{}
+
+	for _, query := range queries {
+		for _, f := range tagmap[query] {
+			collection["files"][f] = true
+		}
 	}
 
+	for _, query := range queries {
+		for tag, _ := range adjacencies[query] {
+			collection["adjacencies"][tag] = true
+		}
+	}
 	return collection
 }
 
-func PrintCollection(collection map[string][]string, query string, grep bool) {
+func PrintCollection(collection map[string]map[string]bool, queries []string, grep bool) {
 	fmt.Println("[tag]")
-	fmt.Println(query)
+	fmt.Println(queries)
 	fmt.Println()
 
 	s := "[files]"
@@ -155,20 +172,20 @@ func PrintCollection(collection map[string][]string, query string, grep bool) {
 		s = "[files:grep]"
 	}
 	fmt.Println(s)
-	for _, f := range collection["files"] {
+	for f, _ := range collection["files"] {
 		fmt.Println(f)
 	}
 	fmt.Println()
 
 	fmt.Println("[tags]")
-	for _, t := range collection["adjacencies"] {
+	for t, _ := range collection["adjacencies"] {
 		fmt.Println(t)
 	}
 }
 
 func main() {
-	var query = flag.String("query", "", "query")
-	var grep = flag.Bool("grep", false, "whether to show files containing the query.")
+	var query = flag.String("query", "", "search for files with the given tag(s).")
+	var grep = flag.Bool("grep", false, "whether to show files containing the query as content.")
 	flag.Parse()
 
 	// take first positional arg as query:
@@ -176,14 +193,15 @@ func main() {
 	if *query == "" && len(flag.Args()) > 0 {
 		*query = flag.Args()[0]
 	}
+	queries := ParseQuery(*query)
 
 	entries := GetEntries(PATTERN)
 	tagmap := MakeTagmap(entries)
 	if *grep {
-		tagmap = Grep(entries, tagmap, *query)
+		tagmap = Grep(entries, tagmap, queries)
 	}
 	adjacencies := Adjacencies(entries, tagmap)
 
-	collection := Collect(tagmap, adjacencies, *query)
-	PrintCollection(collection, *query, *grep)
+	collection := Collect(tagmap, adjacencies, queries)
+	PrintCollection(collection, queries, *grep)
 }
