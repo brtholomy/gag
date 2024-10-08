@@ -51,7 +51,7 @@ func ParseTags(content *string) (tags []string) {
 	for i := range res {
 		// group submatch is indexed at 1:
 		// this shouldn't ever fail if there's a result:
-		tags[i] = res[i][1]
+		tags = append(tags, res[i][1])
 	}
 	return tags
 }
@@ -82,6 +82,7 @@ func ParseContent(filename string, content *string) Entry {
 
 // maps tags to a set of filenames
 func Tagmap(entries []Entry) (tagmap map[string]Set) {
+	tagmap = map[string]Set{}
 	for _, e := range entries {
 		for _, tag := range e.tags {
 			// allocate submap if necessary:
@@ -98,6 +99,7 @@ func Tagmap(entries []Entry) (tagmap map[string]Set) {
 //
 // technically a map[tag]set : go's "set" being a map[T]bool.
 func Adjacencies(entries []Entry, tagmap map[string]Set) (adjacencies map[string]Set) {
+	adjacencies = map[string]Set{}
 	for tag, _ := range tagmap {
 		adjacencies[tag] = Set{}
 	}
@@ -120,6 +122,7 @@ func Adjacencies(entries []Entry, tagmap map[string]Set) (adjacencies map[string
 	return adjacencies
 }
 
+// extends the tagmap to include files which contain the query string, like grepping.
 func Grep(entries []Entry, tagmap map[string]Set, queries []string) map[string]Set {
 	for _, e := range entries {
 		for _, query := range queries {
@@ -138,6 +141,7 @@ func Collect(
 	adjacencies map[string]Set,
 	queries []string,
 ) (collection map[string]Set) {
+	collection = map[string]Set{}
 	collection["files"] = Set{}
 	collection["adjacencies"] = Set{}
 
