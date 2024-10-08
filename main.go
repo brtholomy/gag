@@ -136,6 +136,20 @@ func Grep(entries []Entry, tagmap map[string]Set, queries []string) map[string]S
 	return tagmap
 }
 
+// extends the tagmap to include filenames which contain the query string, like find.
+func Find(entries []Entry, tagmap map[string]Set, queries []string) map[string]Set {
+	for _, e := range entries {
+		for _, query := range queries {
+			// TODO: in the presence of multiple query strings, this is an OR.
+			// Should be an AND.
+			if strings.Contains(e.filename, query) {
+				tagmap[query][e.filename] = true
+			}
+		}
+	}
+	return tagmap
+}
+
 func Collect(
 	tagmap map[string]Set,
 	adjacencies map[string]Set,
@@ -183,6 +197,7 @@ func PrintCollection(collection map[string]Set, queries []string, grep bool) {
 func main() {
 	var query = flag.String("query", "", "search for files with the given tag(s).")
 	var grep = flag.Bool("grep", false, "whether to show files containing the query as content.")
+	var find = flag.Bool("find", false, "whether to show files containing the query as filename.")
 	flag.Parse()
 
 	// take first positional arg as query:
@@ -196,6 +211,9 @@ func main() {
 	tagmap := Tagmap(entries)
 	if *grep {
 		tagmap = Grep(entries, tagmap, queries)
+	}
+	if *find {
+		tagmap = Find(entries, tagmap, queries)
 	}
 	adjacencies := Adjacencies(entries, tagmap)
 
