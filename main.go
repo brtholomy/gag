@@ -140,8 +140,6 @@ func Grep(entries []Entry, tagmap map[string]Set, queries []string) map[string]S
 func Find(entries []Entry, tagmap map[string]Set, queries []string) map[string]Set {
 	for _, e := range entries {
 		for _, query := range queries {
-			// TODO: in the presence of multiple query strings, this is an OR.
-			// Should be an AND.
 			if strings.Contains(e.filename, query) {
 				tagmap[query][e.filename] = true
 			}
@@ -150,6 +148,23 @@ func Find(entries []Entry, tagmap map[string]Set, queries []string) map[string]S
 	return tagmap
 }
 
+// shrinks the tagmap to exclude filenames which contain the query as a tag.
+func Diff(entries []Entry, tagmap map[string]Set, queries []string) map[string]Set {
+	for _, e := range entries {
+		for _, query := range queries {
+			if slices.Contains(e.tags, query) {
+				tagmap[query][e.filename] = false
+			}
+		}
+	}
+	return tagmap
+}
+
+// collects our maps between all tags:files and all tags:tags, into one Set of
+// files, and one Set of adjacent tags.
+//
+// NOTE: would be more efficient to only map the relevant queried tag to file,
+// but Adjacencies() is easier knowing about all tags.
 func Collect(
 	tagmap map[string]Set,
 	adjacencies map[string]Set,
@@ -160,14 +175,19 @@ func Collect(
 	collection["adjacencies"] = Set{}
 
 	for _, query := range queries {
-		for file, _ := range tagmap[query] {
-			collection["files"][file] = true
+		for file, val := range tagmap[query] {
+			// because the --diff command may have altered the entry to false
+			if val {
+				collection["files"][file] = true
+			}
 		}
 	}
 
 	for _, query := range queries {
-		for tag, _ := range adjacencies[query] {
-			collection["adjacencies"][tag] = true
+		for tag, val := range adjacencies[query] {
+			if val {
+				collection["adjacencies"][tag] = true
+			}
 		}
 	}
 	return collection
@@ -198,6 +218,7 @@ func main() {
 	var query = flag.String("query", "", "search for files with the given tag(s).")
 	var grep = flag.Bool("grep", false, "whether to show files containing the query as content.")
 	var find = flag.Bool("find", false, "whether to show files containing the query as filename.")
+	var diff = flag.Bool("diff", false, "whether to omit files containing the query as tag.")
 	flag.Parse()
 
 	// take first positional arg as query:
@@ -209,13 +230,16 @@ func main() {
 	queries := ParseQuery(*query)
 	entries := Entries(PATTERN)
 	tagmap := Tagmap(entries)
+	adjacencies := Adjacencies(entries, tagmap)
 	if *grep {
 		tagmap = Grep(entries, tagmap, queries)
 	}
 	if *find {
 		tagmap = Find(entries, tagmap, queries)
 	}
-	adjacencies := Adjacencies(entries, tagmap)
+	if *diff {
+		tagmap = Diff(entries, tagmap, queries)
+	}
 
 	collection := Collect(tagmap, adjacencies, queries)
 	PrintCollection(collection, queries, *grep)
