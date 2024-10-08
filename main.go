@@ -193,25 +193,49 @@ func Collect(
 	return collection
 }
 
-func PrintCollection(collection map[string]Set, queries []string, grep bool) {
-	fmt.Println("[tag]")
-	fmt.Println(queries)
-	fmt.Println()
-
-	s := "[files]"
-	if grep {
-		s = "[files:grep]"
-	}
-	fmt.Println(s)
+// prints out the complete and ordered collection of files, adjacencies, sums,
+// and original query tags.
+//
+// default format is a TOML syntax possibly useful elsewhere. the pipe flag will
+// spit out a simple list suitable for piping to cat.
+func PrintCollection(collection map[string]Set, queries []string, pipe bool) {
+	// sort the collection of files only by proxy at the last moment.
+	ordered_files := []string{}
 	for f, _ := range collection["files"] {
-		fmt.Println(f)
+		ordered_files = append(ordered_files, f)
 	}
-	fmt.Println()
+	slices.Sort(ordered_files)
 
-	fmt.Println("[tags]")
-	for t, _ := range collection["adjacencies"] {
-		fmt.Println(t)
+	// build up strings
+	files := fmt.Sprintln("[files]")
+	for _, f := range ordered_files {
+		files += fmt.Sprintln(f)
 	}
+
+	tags := fmt.Sprintln("[tags]")
+	for _, q := range queries {
+		tags += fmt.Sprintln(q)
+	}
+
+	adj := fmt.Sprintln("[adjacencies]")
+	for t, _ := range collection["adjacencies"] {
+		adj += fmt.Sprintln(t)
+	}
+
+	sums := fmt.Sprintln("[sums]")
+	sums += fmt.Sprintln("files =", len(collection["files"]))
+	sums += fmt.Sprintln("adjacencies =", len(collection["adjacencies"]))
+
+	if pipe {
+		// slice off including the newline:
+		files = files[8:]
+		fmt.Println(files)
+		return
+	}
+	fmt.Println(files)
+	fmt.Println(tags)
+	fmt.Println(adj)
+	fmt.Println(sums)
 }
 
 func main() {
@@ -219,6 +243,7 @@ func main() {
 	var grep = flag.Bool("grep", false, "whether to show files containing the query as content.")
 	var find = flag.Bool("find", false, "whether to show files containing the query as filename.")
 	var diff = flag.Bool("diff", false, "whether to omit files containing the query as tag.")
+	var pipe = flag.Bool("pipe", false, "whether to only print files for piping.")
 	flag.Parse()
 
 	// take first positional arg as query:
@@ -242,5 +267,5 @@ func main() {
 	}
 
 	collection := Collect(tagmap, adjacencies, queries)
-	PrintCollection(collection, queries, *grep)
+	PrintCollection(collection, queries, *pipe)
 }
