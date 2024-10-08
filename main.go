@@ -28,8 +28,7 @@ func ParseQuery(query string) []string {
 	return strings.Split(query, ",")
 }
 
-func GetEntries(pattern string) []Entry {
-	res := []Entry{}
+func Entries(pattern string) (entries []Entry) {
 	files, err := filepath.Glob(pattern)
 	if err != nil {
 		panic(err)
@@ -41,15 +40,14 @@ func GetEntries(pattern string) []Entry {
 		}
 		s := string(dat)
 		e := ParseContent(f, &s)
-		res = append(res, e)
+		entries = append(entries, e)
 	}
-	return res
+	return entries
 }
 
-func ParseTags(content *string) []string {
+func ParseTags(content *string) (tags []string) {
 	r, _ := regexp.Compile(`(?m)^\+ (.+)$`)
 	res := r.FindAllStringSubmatch(*content, -1)
-	tags := make([]string, len(res))
 	for i := range res {
 		// group submatch is indexed at 1:
 		// this shouldn't ever fail if there's a result:
@@ -74,19 +72,16 @@ func ParseContent(filename string, content *string) Entry {
 	base := filepath.Base(filename)
 	date, _ := ParseDate(content)
 	tags := ParseTags(content)
-	e := Entry{
+	return Entry{
 		base,
 		date,
 		*content,
 		tags,
 	}
-	return e
 }
 
 // maps tags to a set of filenames
-func MakeTagmap(entries []Entry) map[string]Set {
-	tagmap := map[string]Set{}
-
+func Tagmap(entries []Entry) (tagmap map[string]Set) {
 	for _, e := range entries {
 		for _, tag := range e.tags {
 			// allocate submap if necessary:
@@ -102,8 +97,7 @@ func MakeTagmap(entries []Entry) map[string]Set {
 // adjacencies is a map from tag to other tags occuring in all files.
 //
 // technically a map[tag]set : go's "set" being a map[T]bool.
-func Adjacencies(entries []Entry, tagmap map[string]Set) map[string]Set {
-	adjacencies := make(map[string]Set, len(entries))
+func Adjacencies(entries []Entry, tagmap map[string]Set) (adjacencies map[string]Set) {
 	for tag, _ := range tagmap {
 		adjacencies[tag] = Set{}
 	}
@@ -143,9 +137,7 @@ func Collect(
 	tagmap map[string]Set,
 	adjacencies map[string]Set,
 	queries []string,
-) map[string]Set {
-
-	collection := map[string]Set{}
+) (collection map[string]Set) {
 	collection["files"] = Set{}
 	collection["adjacencies"] = Set{}
 
@@ -194,10 +186,10 @@ func main() {
 	if *query == "" && len(flag.Args()) > 0 {
 		*query = flag.Args()[0]
 	}
-	queries := ParseQuery(*query)
 
-	entries := GetEntries(PATTERN)
-	tagmap := MakeTagmap(entries)
+	queries := ParseQuery(*query)
+	entries := Entries(PATTERN)
+	tagmap := Tagmap(entries)
 	if *grep {
 		tagmap = Grep(entries, tagmap, queries)
 	}
