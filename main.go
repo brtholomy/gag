@@ -239,7 +239,8 @@ func PrintCollection(collection map[string]Set, queries []string, pipe bool) {
 }
 
 func main() {
-	var query = flag.String("query", "", "search for files with the given tag(s).")
+	var query = flag.String("query", "", "search for files with the given tag(s). "+
+		"This option may be passed implicitly as the first arg.")
 	var grep = flag.Bool("grep", false, "whether to show files containing the query as content.")
 	var find = flag.Bool("find", false, "whether to show files containing the query as filename.")
 	var diff = flag.Bool("diff", false, "whether to omit files containing the query as tag.")
@@ -248,8 +249,13 @@ func main() {
 
 	// take first positional arg as query:
 	// NOTE: all flags must precede: gag --grep arg
-	if *query == "" && len(flag.Args()) > 0 {
-		*query = flag.Args()[0]
+	if *query == "" {
+		if len(flag.Args()) > 0 {
+			*query = flag.Args()[0]
+		} else {
+			flag.Usage()
+			return
+		}
 	}
 
 	queries := ParseQuery(*query)
