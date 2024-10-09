@@ -12,8 +12,6 @@ import (
 	"time"
 )
 
-const PATTERN string = "/home/bth/x/writing/journal/*.md"
-
 type Entry struct {
 	filename string
 	date     time.Time
@@ -244,6 +242,7 @@ func PrintCollection(collection map[string]Set, queries []string, pipe bool) {
 }
 
 func main() {
+	var glob = flag.String("glob", "./*md", "search for files with this glob pattern.")
 	var query = flag.String("query", "", "search for files with the given tag(s). "+
 		"This option may be passed implicitly as the first arg.")
 	var grep = flag.Bool("grep", false, "whether to show files containing the query as content.")
@@ -264,7 +263,7 @@ func main() {
 	}
 
 	queries := ParseQuery(*query)
-	entries := Entries(PATTERN)
+	entries := Entries(*glob)
 	tagmap := Tagmap(entries)
 	adjacencies := Adjacencies(entries)
 	if *grep {
