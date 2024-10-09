@@ -98,25 +98,22 @@ func Tagmap(entries []Entry) (tagmap map[string]Set) {
 // adjacencies is a map from tag to other tags occuring in all files.
 //
 // technically a map[tag]set : go's "set" being a map[T]bool.
-func Adjacencies(entries []Entry, tagmap map[string]Set) (adjacencies map[string]Set) {
+func Adjacencies(entries []Entry) (adjacencies map[string]Set) {
 	adjacencies = map[string]Set{}
-	for tag, _ := range tagmap {
-		adjacencies[tag] = Set{}
-	}
 
 	for _, e := range entries {
 		for i, tag := range e.tags {
 			others := make([]string, len(e.tags))
 			copy(others, e.tags)
 			others = slices.Delete(others, i, i+1)
-			set, ok := adjacencies[tag]
-			// TODO: is this necessary?
-			if ok {
-				for _, t := range others {
-					set[t] = true
-				}
+
+			_, ok := adjacencies[tag]
+			if !ok {
+				adjacencies[tag] = Set{}
 			}
-			adjacencies[tag] = set
+			for _, other := range others {
+				adjacencies[tag][other] = true
+			}
 		}
 	}
 	return adjacencies
@@ -261,7 +258,7 @@ func main() {
 	queries := ParseQuery(*query)
 	entries := Entries(PATTERN)
 	tagmap := Tagmap(entries)
-	adjacencies := Adjacencies(entries, tagmap)
+	adjacencies := Adjacencies(entries)
 	if *grep {
 		tagmap = Grep(entries, tagmap, queries)
 	}
