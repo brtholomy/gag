@@ -126,6 +126,10 @@ func Grep(entries []Entry, tagmap map[string]Set, queries []string) map[string]S
 			// TODO: in the presence of multiple query strings, this is an OR.
 			// Should be an AND.
 			if strings.Contains(strings.ToLower(e.content), query) {
+				_, ok := tagmap[query]
+				if !ok {
+					tagmap[query] = Set{}
+				}
 				tagmap[query][e.filename] = true
 			}
 		}
@@ -138,6 +142,10 @@ func Find(entries []Entry, tagmap map[string]Set, queries []string) map[string]S
 	for _, e := range entries {
 		for _, query := range queries {
 			if strings.Contains(e.filename, query) {
+				_, ok := tagmap[query]
+				if !ok {
+					tagmap[query] = Set{}
+				}
 				tagmap[query][e.filename] = true
 			}
 		}
@@ -150,7 +158,10 @@ func Diff(entries []Entry, tagmap map[string]Set, queries []string) map[string]S
 	for _, e := range entries {
 		for _, query := range queries {
 			if slices.Contains(e.tags, query) {
-				tagmap[query][e.filename] = false
+				_, ok := tagmap[query]
+				if ok {
+					delete(tagmap[query], e.filename)
+				}
 			}
 		}
 	}
@@ -172,11 +183,8 @@ func Collect(
 	collection["adjacencies"] = Set{}
 
 	for _, query := range queries {
-		for file, val := range tagmap[query] {
-			// because the --diff command may have altered the entry to false
-			if val {
-				collection["files"][file] = true
-			}
+		for file, _ := range tagmap[query] {
+			collection["files"][file] = true
 		}
 	}
 
