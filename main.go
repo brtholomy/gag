@@ -26,21 +26,10 @@ func ParseQuery(query string) []string {
 	return strings.Split(query, ",")
 }
 
-func Entries(pattern string) (entries []Entry) {
-	files, err := filepath.Glob(pattern)
-	if err != nil {
-		panic(err)
-	}
-	for _, f := range files {
-		dat, err := os.ReadFile(f)
-		if err != nil {
-			panic(err)
-		}
-		s := string(dat)
-		e := ParseContent(f, &s)
-		entries = append(entries, e)
-	}
-	return entries
+func ParseHeader(content *string) string {
+	// returns complete string if not found:
+	header, _, _ := strings.Cut(*content, "\n\n")
+	return header
 }
 
 func ParseTags(content *string) (tags []string) {
@@ -68,14 +57,32 @@ func ParseDate(content *string) (time.Time, error) {
 
 func ParseContent(filename string, content *string) Entry {
 	base := filepath.Base(filename)
-	date, _ := ParseDate(content)
-	tags := ParseTags(content)
+	header := ParseHeader(content)
+	date, _ := ParseDate(&header)
+	tags := ParseTags(&header)
 	return Entry{
 		base,
 		date,
 		*content,
 		tags,
 	}
+}
+
+func Entries(pattern string) (entries []Entry) {
+	files, err := filepath.Glob(pattern)
+	if err != nil {
+		panic(err)
+	}
+	for _, f := range files {
+		dat, err := os.ReadFile(f)
+		if err != nil {
+			panic(err)
+		}
+		s := string(dat)
+		e := ParseContent(f, &s)
+		entries = append(entries, e)
+	}
+	return entries
 }
 
 // maps tags to a set of filenames

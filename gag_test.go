@@ -9,6 +9,13 @@ import (
 
 const TEST_PATTERN string = "./mock/*.md"
 
+func TestParseHeader(t *testing.T) {
+	entries := Entries(TEST_PATTERN)
+	header := ParseHeader(&entries[0].content)
+	expected := "# 01.foo.md\n: 2024.09.25\n+ sot\n+ foo"
+	assert.Equal(t, expected, header)
+}
+
 func TestEntriesLen(t *testing.T) {
 	entries := Entries(TEST_PATTERN)
 	expected := 6
