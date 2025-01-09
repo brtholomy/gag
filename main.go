@@ -108,12 +108,13 @@ func Adjacencies(entries []Entry) (adjacencies map[string]Set) {
 
 	for _, e := range entries {
 		for i, tag := range e.tags {
+			// make a slice copy but minus the current tag:
 			others := make([]string, len(e.tags))
 			copy(others, e.tags)
 			others = slices.Delete(others, i, i+1)
 
-			_, ok := adjacencies[tag]
-			if !ok {
+			// allocate submap if necessary:
+			if _, ok := adjacencies[tag]; !ok {
 				adjacencies[tag] = Set{}
 			}
 			for _, other := range others {
@@ -131,8 +132,8 @@ func Grep(entries []Entry, tagmap map[string]Set, queries []string) map[string]S
 			// TODO: in the presence of multiple query strings, this is an OR.
 			// Should be an AND.
 			if strings.Contains(strings.ToLower(e.content), query) {
-				_, ok := tagmap[query]
-				if !ok {
+				// allocate submap if necessary:
+				if _, ok := tagmap[query]; !ok {
 					tagmap[query] = Set{}
 				}
 				tagmap[query][e.filename] = true
@@ -147,8 +148,8 @@ func Find(entries []Entry, tagmap map[string]Set, queries []string) map[string]S
 	for _, e := range entries {
 		for _, query := range queries {
 			if strings.Contains(e.filename, query) {
-				_, ok := tagmap[query]
-				if !ok {
+				// allocate submap if necessary:
+				if _, ok := tagmap[query]; !ok {
 					tagmap[query] = Set{}
 				}
 				tagmap[query][e.filename] = true
@@ -163,8 +164,7 @@ func Diff(entries []Entry, tagmap map[string]Set, queries []string) map[string]S
 	for _, e := range entries {
 		for _, query := range queries {
 			if slices.Contains(e.tags, query) {
-				_, ok := tagmap[query]
-				if ok {
+				if _, ok := tagmap[query]; ok {
 					delete(tagmap[query], e.filename)
 				}
 			}
