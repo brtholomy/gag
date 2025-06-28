@@ -88,3 +88,62 @@ func TestDiff(t *testing.T) {
 	expected := Set{"06.quz.md": true}
 	assert.Equal(t, expected, tagmap["diff"])
 }
+
+// Since Entries() involves filesystem reads, we test the underlying logic.
+func BenchmarkParseContent(b *testing.B) {
+	e := Entries(TEST_PATTERN)[0]
+	for b.Loop() {
+		ParseContent(e.filename, &e.content)
+	}
+}
+
+func BenchmarkTagmap(b *testing.B) {
+	entries := Entries(TEST_PATTERN)
+	for b.Loop() {
+		Tagmap(entries)
+	}
+}
+
+func BenchmarkAdjacencies(b *testing.B) {
+	entries := Entries(TEST_PATTERN)
+	for b.Loop() {
+		Adjacencies(entries)
+	}
+}
+
+func BenchmarkGrep(b *testing.B) {
+	entries := Entries(TEST_PATTERN)
+	queries := ParseQuery("foo")
+	tagmap := Tagmap(entries)
+	for b.Loop() {
+		Grep(entries, tagmap, queries)
+	}
+}
+
+func BenchmarkFind(b *testing.B) {
+	entries := Entries(TEST_PATTERN)
+	queries := ParseQuery("foo")
+	tagmap := Tagmap(entries)
+	for b.Loop() {
+		Find(entries, tagmap, queries)
+	}
+}
+
+func BenchmarkDiff(b *testing.B) {
+	entries := Entries(TEST_PATTERN)
+	queries := ParseQuery("foo")
+	tagmap := Tagmap(entries)
+	for b.Loop() {
+		Diff(entries, tagmap, queries)
+	}
+}
+
+func BenchmarkCollect(b *testing.B) {
+	entries := Entries(TEST_PATTERN)
+	queries := ParseQuery("foo")
+	tagmap := Tagmap(entries)
+	adjacencies := Adjacencies(entries)
+	for b.Loop() {
+		Collect(tagmap, adjacencies, queries)
+	}
+}
