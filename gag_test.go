@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const TEST_PATTERN string = "./mock/*.md"
+const TEST_PATTERN string = "./testdata/*.md"
 
 func TestParseHeader(t *testing.T) {
 	entries := Entries(TEST_PATTERN)
@@ -146,4 +146,17 @@ func BenchmarkCollect(b *testing.B) {
 	for b.Loop() {
 		Collect(tagmap, adjacencies, queries)
 	}
+}
+
+func FuzzParseContent(f *testing.F) {
+	entries := Entries(TEST_PATTERN)
+	for _, e := range entries {
+		f.Add(e.filename, e.content)
+	}
+	f.Fuzz(func(t *testing.T, filename, content string) {
+		e := ParseContent(filename, &content)
+		if e.date.IsZero() {
+			t.Fatalf("failed to read date: %v", filename)
+		}
+	})
 }

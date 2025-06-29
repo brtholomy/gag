@@ -44,7 +44,7 @@ func ParseTags(content *string) (tags []string) {
 }
 
 func ParseDate(content *string) (time.Time, error) {
-	r, _ := regexp.Compile(`(?m)^\: (.+)\n`)
+	r, _ := regexp.Compile(`(?m)^\: ([\.0-9]+?)$`)
 	res := r.FindStringSubmatch(*content)
 	if len(res) < 2 {
 		return time.Time{}, errors.New("failed to find date string")
