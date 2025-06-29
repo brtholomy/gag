@@ -6,7 +6,7 @@ A little CLI tool for exploring my own writing, structured with the [UM schema](
 gag foo
 ```
 
-Response in the ./mock dir, formatted like TOML:
+Response in the ./testdata dir, formatted like TOML:
 
 ```sh
 [files]
@@ -26,11 +26,11 @@ adjacencies = 1
 One of the most useful flags is `--pipe`:
 
 ```sh
-gag --pipe foo
+gag --query foo --pipe
 ```
 
 Which gives a simple list of files ready to be piped to `cat`:
 
 ```sh
-gag --pipe foo | xargs cat > /tmp/foo.md
+gag --query foo --pipe | xargs cat > /tmp/foo.md
 ```
