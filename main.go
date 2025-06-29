@@ -86,8 +86,8 @@ func Entries(pattern string) (entries []Entry) {
 }
 
 // maps tags to a set of filenames
-func Tagmap(entries []Entry) (tagmap map[string]Set) {
-	tagmap = map[string]Set{}
+func Tagmap(entries []Entry) map[string]Set {
+	tagmap := map[string]Set{}
 	for _, e := range entries {
 		for _, tag := range e.tags {
 			// allocate submap if necessary:
@@ -103,8 +103,8 @@ func Tagmap(entries []Entry) (tagmap map[string]Set) {
 // adjacencies is a map from tag to other tags occuring in all files.
 //
 // technically a map[tag]set : go's "set" being a map[T]bool.
-func Adjacencies(entries []Entry) (adjacencies map[string]Set) {
-	adjacencies = map[string]Set{}
+func Adjacencies(entries []Entry) map[string]Set {
+	adjacencies := map[string]Set{}
 
 	for _, e := range entries {
 		for i, tag := range e.tags {
@@ -178,12 +178,8 @@ func Diff(entries []Entry, tagmap map[string]Set, queries []string) map[string]S
 //
 // NOTE: would be more efficient to only map the relevant queried tag to file,
 // but Adjacencies() is easier knowing about all tags.
-func Collect(
-	tagmap map[string]Set,
-	adjacencies map[string]Set,
-	queries []string,
-) (collection map[string]Set) {
-	collection = map[string]Set{}
+func Collect(tagmap map[string]Set, adjacencies map[string]Set, queries []string) map[string]Set {
+	collection := map[string]Set{}
 	collection["files"] = Set{}
 	collection["adjacencies"] = Set{}
 
