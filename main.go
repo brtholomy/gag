@@ -19,8 +19,13 @@ type Entry struct {
 	tags     []string
 }
 
-// convenience shorthand for this awkward type:
+// convenience shorthand for this awkward map type.
 type Set map[string]bool
+
+// add a member to the "set"
+func (s Set) Add(k string) {
+	s[k] = true
+}
 
 func ParseQuery(query string) []string {
 	return strings.Split(query, ",")
@@ -94,7 +99,7 @@ func Tagmap(entries []Entry) map[string]Set {
 			if _, ok := tagmap[tag]; !ok {
 				tagmap[tag] = Set{}
 			}
-			tagmap[tag][e.filename] = true
+			tagmap[tag].Add(e.filename)
 		}
 	}
 	return tagmap
@@ -118,7 +123,7 @@ func Adjacencies(entries []Entry) map[string]Set {
 				adjacencies[tag] = Set{}
 			}
 			for _, other := range others {
-				adjacencies[tag][other] = true
+				adjacencies[tag].Add(other)
 			}
 		}
 	}
@@ -136,7 +141,7 @@ func Grep(entries []Entry, tagmap map[string]Set, queries []string) map[string]S
 				if _, ok := tagmap[query]; !ok {
 					tagmap[query] = Set{}
 				}
-				tagmap[query][e.filename] = true
+				tagmap[query].Add(e.filename)
 			}
 		}
 	}
@@ -152,7 +157,7 @@ func Find(entries []Entry, tagmap map[string]Set, queries []string) map[string]S
 				if _, ok := tagmap[query]; !ok {
 					tagmap[query] = Set{}
 				}
-				tagmap[query][e.filename] = true
+				tagmap[query].Add(e.filename)
 			}
 		}
 	}
@@ -185,14 +190,14 @@ func Collect(tagmap map[string]Set, adjacencies map[string]Set, queries []string
 
 	for _, query := range queries {
 		for file, _ := range tagmap[query] {
-			collection["files"][file] = true
+			collection["files"].Add(file)
 		}
 	}
 
 	for _, query := range queries {
 		for tag, val := range adjacencies[query] {
 			if val {
-				collection["adjacencies"][tag] = true
+				collection["adjacencies"].Add(tag)
 			}
 		}
 	}
