@@ -73,11 +73,13 @@ func ParseContent(filename string, content *string) Entry {
 	}
 }
 
-func Entries(pattern string) (entries []Entry) {
+func Entries(pattern string) []Entry {
 	files, err := filepath.Glob(pattern)
 	if err != nil {
 		panic(err)
 	}
+	// NOTE: size 0, capacity specified:
+	entries := make([]Entry, 0, len(files))
 	for _, f := range files {
 		dat, err := os.ReadFile(f)
 		if err != nil {
