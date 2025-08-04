@@ -272,8 +272,17 @@ func main() {
 
 	queries := ParseQuery(*query)
 	entries := Entries(*glob)
-	tagmap := Tagmap(entries)
-	adjacencies := Adjacencies(entries)
+	// a chance for concurrency:
+	tmch := make(chan map[string]Set)
+	adch := make(chan map[string]Set)
+	go func() {
+		tmch <- Tagmap(entries)
+	}()
+	go func() {
+		adch <- Adjacencies(entries)
+	}()
+	tagmap := <-tmch
+	adjacencies := <-adch
 	if *grep {
 		tagmap = Grep(entries, tagmap, queries)
 	}
