@@ -257,7 +257,7 @@ func PrintIntersections(intersections map[string]Set) {
 	for _, f := range ordered_files {
 		files += fmt.Sprintln(f)
 	}
-	fmt.Println(files)
+	fmt.Print(files)
 }
 
 // prints out the complete and ordered collection of files, adjacencies, sums,
