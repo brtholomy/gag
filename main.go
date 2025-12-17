@@ -120,19 +120,22 @@ func Tagmap(entries []Entry) map[string]Set {
 }
 
 // produce a tagmap reduced to the files covered by combined queries
-// TODO: handle tags > 2
+// TODO: handle comma separated groups as logical OR
 func Intersections(tagmap map[string]Set, queries []string) map[string]Set {
 	intersections := map[string]Set{}
+	// just to prevent the setup from barfing:
 	if len(queries) < 2 {
 		return intersections
 	}
-	for i := 0; i+1 < len(queries); i++ {
-		q1 := queries[i]
-		q2 := queries[i+1]
-		query := q1 + "+" + q2
-		s := Intersect(tagmap[q1], tagmap[q2])
-		intersections[query] = s
+	q := queries[0]
+	set := tagmap[q]
+	for i := 1; i < len(queries); i++ {
+		q = queries[i]
+		set = Intersect(set, tagmap[q])
 	}
+	// reconstruct the current query group:
+	qjoined := strings.Join(queries, "+")
+	intersections[qjoined] = set
 	return intersections
 }
 
@@ -258,6 +261,8 @@ func PrintIntersections(tagmap map[string]Set) {
 //
 // default format is a TOML syntax possibly useful elsewhere. the pipe flag will
 // spit out a simple list suitable for piping to cat.
+//
+// TODO: reverse the defaults: print the pipe output by default
 func PrintCollection(collection map[string]Set, queries []string, pipe bool) {
 	// sort the collection of files only by proxy at the last moment.
 	ordered_files := []string{}
@@ -333,8 +338,8 @@ func main() {
 	tagmap := <-tmch
 	adjacencies := <-adch
 	if len(queries) > 1 {
-		tagmap = Intersections(tagmap, queries)
-		PrintIntersections(tagmap)
+		intersections := Intersections(tagmap, queries)
+		PrintIntersections(intersections)
 		return
 	}
 	if *grep {
