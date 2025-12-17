@@ -27,8 +27,20 @@ func (s Set) Add(k string) {
 	s[k] = true
 }
 
+// intersect two sets
+func Intersect(p Set, q Set) Set {
+	r := Set{}
+	for m, _ := range p {
+		if q[m] {
+			r.Add(m)
+		}
+	}
+	return r
+}
+
+// TODO: only accepts intersection syntax for now
 func ParseQuery(query string) []string {
-	return strings.Split(query, ",")
+	return strings.Split(query, "+")
 }
 
 func ParseHeader(content *string) string {
@@ -105,6 +117,23 @@ func Tagmap(entries []Entry) map[string]Set {
 		}
 	}
 	return tagmap
+}
+
+// produce a tagmap reduced to the files covered by combined queries
+// TODO: handle tags > 2
+func Intersections(tagmap map[string]Set, queries []string) map[string]Set {
+	intersections := map[string]Set{}
+	if len(queries) < 2 {
+		return intersections
+	}
+	for i := 0; i+1 < len(queries); i++ {
+		q1 := queries[i]
+		q2 := queries[i+1]
+		query := q1 + "+" + q2
+		s := Intersect(tagmap[q1], tagmap[q2])
+		intersections[query] = s
+	}
+	return intersections
 }
 
 // adjacencies is a map from tag to other tags occuring in all files.
@@ -206,6 +235,24 @@ func Collect(tagmap map[string]Set, adjacencies map[string]Set, queries []string
 	return collection
 }
 
+// prints out the intersected tagmap
+func PrintIntersections(tagmap map[string]Set) {
+	ordered_files := []string{}
+	for _, s := range tagmap {
+		for f, _ := range s {
+			ordered_files = append(ordered_files, f)
+		}
+	}
+	slices.Sort(ordered_files)
+
+	// build up strings
+	var files string
+	for _, f := range ordered_files {
+		files += fmt.Sprintln(f)
+	}
+	fmt.Println(files)
+}
+
 // prints out the complete and ordered collection of files, adjacencies, sums,
 // and original query tags.
 //
@@ -285,6 +332,11 @@ func main() {
 	}()
 	tagmap := <-tmch
 	adjacencies := <-adch
+	if len(queries) > 1 {
+		tagmap = Intersections(tagmap, queries)
+		PrintIntersections(tagmap)
+		return
+	}
 	if *grep {
 		tagmap = Grep(entries, tagmap, queries)
 	}
