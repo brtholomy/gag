@@ -123,12 +123,13 @@ func Tagmap(entries []Entry) map[string]Set {
 // TODO: handle comma separated groups as logical OR
 func Intersections(tagmap map[string]Set, queries []string) map[string]Set {
 	intersections := map[string]Set{}
-	// just to prevent the setup from barfing:
-	if len(queries) < 2 {
+	// sanity check:
+	if len(queries) < 1 {
 		return intersections
 	}
 	q := queries[0]
 	set := tagmap[q]
+	// when queries < 2, this won't run, and the Join will be identical to q
 	for i := 1; i < len(queries); i++ {
 		q = queries[i]
 		set = Intersect(set, tagmap[q])
@@ -217,6 +218,9 @@ func Diff(entries []Entry, tagmap map[string]Set, queries []string) map[string]S
 //
 // NOTE: would be more efficient to only map the relevant queried tag to file,
 // but Adjacencies() is easier knowing about all tags.
+//
+// TODO: this will still interpret + syntax as inclusive OR
+// which means with --verbose the syntax changes
 func Collect(tagmap map[string]Set, adjacencies map[string]Set, queries []string) map[string]Set {
 	collection := map[string]Set{}
 	collection["files"] = Set{}
@@ -239,9 +243,9 @@ func Collect(tagmap map[string]Set, adjacencies map[string]Set, queries []string
 }
 
 // prints out the intersected tagmap
-func PrintIntersections(tagmap map[string]Set) {
+func PrintIntersections(intersections map[string]Set) {
 	ordered_files := []string{}
-	for _, s := range tagmap {
+	for _, s := range intersections {
 		for f, _ := range s {
 			ordered_files = append(ordered_files, f)
 		}
@@ -259,11 +263,8 @@ func PrintIntersections(tagmap map[string]Set) {
 // prints out the complete and ordered collection of files, adjacencies, sums,
 // and original query tags.
 //
-// default format is a TOML syntax possibly useful elsewhere. the pipe flag will
-// spit out a simple list suitable for piping to cat.
-//
-// TODO: reverse the defaults: print the pipe output by default
-func PrintCollection(collection map[string]Set, queries []string, pipe bool) {
+// format is a TOML syntax possibly useful elsewhere.
+func PrintCollection(collection map[string]Set, queries []string) {
 	// sort the collection of files only by proxy at the last moment.
 	ordered_files := []string{}
 	for f, _ := range collection["files"] {
@@ -291,12 +292,6 @@ func PrintCollection(collection map[string]Set, queries []string, pipe bool) {
 	sums += fmt.Sprintln("files =", len(collection["files"]))
 	sums += fmt.Sprintln("adjacencies =", len(collection["adjacencies"]))
 
-	if pipe {
-		// slice off including the newline:
-		files = files[8:]
-		fmt.Println(files)
-		return
-	}
 	fmt.Println(files)
 	fmt.Println(tags)
 	fmt.Println(adj)
@@ -310,7 +305,7 @@ func main() {
 	var grep = flag.Bool("grep", false, "whether to show files containing the query as content.")
 	var find = flag.Bool("find", false, "whether to show files containing the query as filename.")
 	var diff = flag.Bool("diff", false, "whether to omit files containing the query as tag.")
-	var pipe = flag.Bool("pipe", false, "whether to only print files for piping.")
+	var verbose = flag.Bool("verbose", false, "whether to print out a verbose summary")
 	flag.Parse()
 
 	// take first positional arg as query:
@@ -337,11 +332,6 @@ func main() {
 	}()
 	tagmap := <-tmch
 	adjacencies := <-adch
-	if len(queries) > 1 {
-		intersections := Intersections(tagmap, queries)
-		PrintIntersections(intersections)
-		return
-	}
 	if *grep {
 		tagmap = Grep(entries, tagmap, queries)
 	}
@@ -351,7 +341,11 @@ func main() {
 	if *diff {
 		tagmap = Diff(entries, tagmap, queries)
 	}
-
-	collection := Collect(tagmap, adjacencies, queries)
-	PrintCollection(collection, queries, *pipe)
+	if *verbose {
+		collection := Collect(tagmap, adjacencies, queries)
+		PrintCollection(collection, queries)
+	} else {
+		intersections := Intersections(tagmap, queries)
+		PrintIntersections(intersections)
+	}
 }
