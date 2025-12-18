@@ -155,7 +155,7 @@ func Adjacencies(entries []Entry) map[string]Set {
 // shrinks the entries to only include files within a date range.
 func Date(entries []Entry, date string) []Entry {
 	// deleting from the old slice would be less efficient than appending to a new one:
-	ranged := make([]Entry, len(entries))
+	ranged := make([]Entry, 0, len(entries))
 	from, to := time.Time{}, time.Time{}
 
 	// when there's no range, the first string here will be the input:
