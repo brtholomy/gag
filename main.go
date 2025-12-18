@@ -215,28 +215,23 @@ func Diff(entries []Entry, tagmap map[string]Set, queries []string) map[string]S
 	return tagmap
 }
 
-// produce a tagmap reduced to the files covered by combined queries
+// produce a Set reduced to the files covered by combined queries
 // TODO: handle comma separated groups as logical OR
-func ReduceFiles(tagmap map[string]Set, queries []string) map[string]Set {
-	// TODO: the only reason this is still a map[string] is the hope that it will handle multiple
-	// comma separated groups
-	intersections := map[string]Set{}
+func ReduceFiles(tagmap map[string]Set, queries []string) Set {
+	set := Set{}
 	// sanity check:
 	if len(queries) < 1 {
-		return intersections
+		return set
 	}
+	// initialize as first query
 	q := queries[0]
-	set := tagmap[q]
+	set = tagmap[q]
 	// when queries < 2, this won't run, and the Join will be identical to q
 	for i := 1; i < len(queries); i++ {
 		q = queries[i]
 		set = Intersect(set, tagmap[q])
 	}
-	// TODO: this is slightly silly as is:
-	// reconstruct the current query group:
-	qjoined := strings.Join(queries, "+")
-	intersections[qjoined] = set
-	return intersections
+	return set
 }
 
 // reduces adjacencies to relevant individual queries
@@ -254,12 +249,10 @@ func ReduceAdjacencies(adjacencies map[string]Set, queries []string) Set {
 }
 
 // prints out the intersected tagmap
-func SprintFiles(intersections map[string]Set) string {
+func SprintFiles(files Set) string {
 	ordered_files := []string{}
-	for _, s := range intersections {
-		for f, _ := range s {
-			ordered_files = append(ordered_files, f)
-		}
+	for f, _ := range files {
+		ordered_files = append(ordered_files, f)
 	}
 	slices.Sort(ordered_files)
 	return fmt.Sprintln(strings.Join(ordered_files, "\n"))
@@ -269,14 +262,14 @@ func SprintFiles(intersections map[string]Set) string {
 // and original query tags.
 //
 // format is a TOML syntax possibly useful elsewhere.
-func Print(intersections map[string]Set, adjacencies Set, queries []string, verbose bool) {
-	f := SprintFiles(intersections)
+func Print(files Set, adjacencies Set, queries []string, verbose bool) {
+	f := SprintFiles(files)
 	if !verbose {
 		fmt.Print(f)
 		return
 	}
-	files := fmt.Sprintln("[files]")
-	files += f
+	filesstr := fmt.Sprintln("[files]")
+	filesstr += f
 
 	tags := fmt.Sprintln("[tags]")
 	for _, q := range queries {
@@ -292,7 +285,7 @@ func Print(intersections map[string]Set, adjacencies Set, queries []string, verb
 	sums += fmt.Sprintln("files =", strings.Count(f, "\n"))
 	sums += fmt.Sprintln("adjacencies =", len(adjacencies))
 
-	fmt.Println(files)
+	fmt.Println(filesstr)
 	fmt.Println(tags)
 	fmt.Println(adj)
 	fmt.Println(sums)
