@@ -165,6 +165,29 @@ func Adjacencies(entries []Entry) map[string]Set {
 	return adjacencies
 }
 
+// shrinks the entries to only include files within a date range.
+func Date(entries []Entry, date string) []Entry {
+	// deleting from the old slice would be less efficient than appending to a new one:
+	ranged := make([]Entry, len(entries))
+	from, to := time.Time{}, time.Time{}
+
+	// when there's no range, the first string here will be the input:
+	f, t, ok := strings.Cut(date, "-")
+	from, _ = time.Parse("2006.01.02", f)
+	if ok {
+		to, _ = time.Parse("2006.01.02", t)
+	} else {
+		// use the from date for the case of a single date given:
+		to, _ = time.Parse("2006.01.02", f)
+	}
+	for _, e := range entries {
+		if from.Compare(e.date) <= 0 && 0 <= to.Compare(e.date) {
+			ranged = append(ranged, e)
+		}
+	}
+	return ranged
+}
+
 // extends the tagmap to include files which contain the query string, like grepping.
 func Grep(entries []Entry, tagmap map[string]Set, queries []string) map[string]Set {
 	for _, e := range entries {
@@ -296,6 +319,8 @@ func main() {
 	var glob = flag.String("glob", "./*md", "search for files with this glob pattern.")
 	var query = flag.String("query", "", "search for files with the given tag(s). "+
 		"This option may be passed implicitly as the first arg.")
+	var date = flag.String("date", "", "search for files matching a date given in ISO 8601: "+
+		"YYYY.MM.DD. May be a single date, or a range: YYYY.MM.DD-YYYY.MM.DD.")
 	var grep = flag.Bool("grep", false, "whether to show files containing the query as content.")
 	var find = flag.Bool("find", false, "whether to show files containing the query as filename.")
 	var diff = flag.Bool("diff", false, "whether to omit files containing the query as tag.")
@@ -315,6 +340,9 @@ func main() {
 
 	queries := ParseQuery(*query)
 	entries := Entries(*glob)
+	if *date != "" {
+		entries = Date(entries, *date)
+	}
 	// a chance for concurrency:
 	tmch := make(chan map[string]Set)
 	adch := make(chan map[string]Set)
@@ -337,6 +365,8 @@ func main() {
 		tagmap = Diff(entries, tagmap, queries)
 	}
 	if *verbose {
+		// TODO: rewrite this. currently not respecting intersections.
+		// verbose flag should probably change a shared printing map and go to one print routine.
 		collection := Collect(tagmap, adjacencies, queries)
 		PrintCollection(collection, queries)
 	} else {
