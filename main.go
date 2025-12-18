@@ -119,27 +119,6 @@ func Tagmap(entries []Entry) map[string]Set {
 	return tagmap
 }
 
-// produce a tagmap reduced to the files covered by combined queries
-// TODO: handle comma separated groups as logical OR
-func Intersections(tagmap map[string]Set, queries []string) map[string]Set {
-	intersections := map[string]Set{}
-	// sanity check:
-	if len(queries) < 1 {
-		return intersections
-	}
-	q := queries[0]
-	set := tagmap[q]
-	// when queries < 2, this won't run, and the Join will be identical to q
-	for i := 1; i < len(queries); i++ {
-		q = queries[i]
-		set = Intersect(set, tagmap[q])
-	}
-	// reconstruct the current query group:
-	qjoined := strings.Join(queries, "+")
-	intersections[qjoined] = set
-	return intersections
-}
-
 // adjacencies is a map from tag to other tags occuring in all files.
 //
 // technically a map[tag]set : go's "set" being a map[T]bool.
@@ -236,37 +215,46 @@ func Diff(entries []Entry, tagmap map[string]Set, queries []string) map[string]S
 	return tagmap
 }
 
-// collects our maps between all tags:files and all tags:tags, into one Set of
-// files, and one Set of adjacent tags.
-//
-// NOTE: would be more efficient to only map the relevant queried tag to file,
-// but Adjacencies() is easier knowing about all tags.
-//
-// TODO: this will still interpret + syntax as inclusive OR
-// which means with --verbose the syntax changes
-func Collect(tagmap map[string]Set, adjacencies map[string]Set, queries []string) map[string]Set {
-	collection := map[string]Set{}
-	collection["files"] = Set{}
-	collection["adjacencies"] = Set{}
-
-	for _, query := range queries {
-		for file, _ := range tagmap[query] {
-			collection["files"].Add(file)
-		}
+// produce a tagmap reduced to the files covered by combined queries
+// TODO: handle comma separated groups as logical OR
+func ReduceFiles(tagmap map[string]Set, queries []string) map[string]Set {
+	// TODO: the only reason this is still a map[string] is the hope that it will handle multiple
+	// comma separated groups
+	intersections := map[string]Set{}
+	// sanity check:
+	if len(queries) < 1 {
+		return intersections
 	}
+	q := queries[0]
+	set := tagmap[q]
+	// when queries < 2, this won't run, and the Join will be identical to q
+	for i := 1; i < len(queries); i++ {
+		q = queries[i]
+		set = Intersect(set, tagmap[q])
+	}
+	// TODO: this is slightly silly as is:
+	// reconstruct the current query group:
+	qjoined := strings.Join(queries, "+")
+	intersections[qjoined] = set
+	return intersections
+}
 
+// reduces adjacencies to relevant individual queries
+// TODO: does not reduce to + intersected queries
+func ReduceAdjacencies(adjacencies map[string]Set, queries []string) Set {
+	reduced := Set{}
 	for _, query := range queries {
 		for tag, val := range adjacencies[query] {
 			if val {
-				collection["adjacencies"].Add(tag)
+				reduced.Add(tag)
 			}
 		}
 	}
-	return collection
+	return reduced
 }
 
 // prints out the intersected tagmap
-func PrintIntersections(intersections map[string]Set) {
+func SprintFiles(intersections map[string]Set) string {
 	ordered_files := []string{}
 	for _, s := range intersections {
 		for f, _ := range s {
@@ -274,26 +262,21 @@ func PrintIntersections(intersections map[string]Set) {
 		}
 	}
 	slices.Sort(ordered_files)
-	fmt.Println(strings.Join(ordered_files, "\n"))
+	return fmt.Sprintln(strings.Join(ordered_files, "\n"))
 }
 
 // prints out the complete and ordered collection of files, adjacencies, sums,
 // and original query tags.
 //
 // format is a TOML syntax possibly useful elsewhere.
-func PrintCollection(collection map[string]Set, queries []string) {
-	// sort the collection of files only by proxy at the last moment.
-	ordered_files := []string{}
-	for f, _ := range collection["files"] {
-		ordered_files = append(ordered_files, f)
+func Print(intersections map[string]Set, adjacencies Set, queries []string, verbose bool) {
+	f := SprintFiles(intersections)
+	if !verbose {
+		fmt.Print(f)
+		return
 	}
-	slices.Sort(ordered_files)
-
-	// build up strings
 	files := fmt.Sprintln("[files]")
-	for _, f := range ordered_files {
-		files += fmt.Sprintln(f)
-	}
+	files += f
 
 	tags := fmt.Sprintln("[tags]")
 	for _, q := range queries {
@@ -301,13 +284,13 @@ func PrintCollection(collection map[string]Set, queries []string) {
 	}
 
 	adj := fmt.Sprintln("[adjacencies]")
-	for t, _ := range collection["adjacencies"] {
+	for t, _ := range adjacencies {
 		adj += fmt.Sprintln(t)
 	}
 
 	sums := fmt.Sprintln("[sums]")
-	sums += fmt.Sprintln("files =", len(collection["files"]))
-	sums += fmt.Sprintln("adjacencies =", len(collection["adjacencies"]))
+	sums += fmt.Sprintln("files =", strings.Count(f, "\n"))
+	sums += fmt.Sprintln("adjacencies =", len(adjacencies))
 
 	fmt.Println(files)
 	fmt.Println(tags)
@@ -364,13 +347,7 @@ func main() {
 	if *diff {
 		tagmap = Diff(entries, tagmap, queries)
 	}
-	if *verbose {
-		// TODO: rewrite this. currently not respecting intersections.
-		// verbose flag should probably change a shared printing map and go to one print routine.
-		collection := Collect(tagmap, adjacencies, queries)
-		PrintCollection(collection, queries)
-	} else {
-		intersections := Intersections(tagmap, queries)
-		PrintIntersections(intersections)
-	}
+	reducedf := ReduceFiles(tagmap, queries)
+	reducedadj := ReduceAdjacencies(adjacencies, queries)
+	Print(reducedf, reducedadj, queries, *verbose)
 }
