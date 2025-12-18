@@ -319,18 +319,12 @@ func main() {
 	if *date != "" {
 		entries = Date(entries, *date)
 	}
-	// a chance for concurrency:
-	tmch := make(chan map[string]Set)
-	adch := make(chan map[string]Set)
-	go func() {
-		tmch <- Tagmap(entries)
-	}()
-	// TODO: only do this for the verbose case, or --adjacencies
-	go func() {
-		adch <- Adjacencies(entries)
-	}()
-	tagmap := <-tmch
-	adjacencies := <-adch
+	tagmap := Tagmap(entries)
+	adjacencies := map[string]Set{}
+	if *verbose {
+		// TODO: should respect the Set as produced by ReduceFiles in the intersected case.
+		adjacencies = Adjacencies(entries)
+	}
 	if *grep {
 		tagmap = Grep(entries, tagmap, queries)
 	}
