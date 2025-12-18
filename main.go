@@ -217,7 +217,7 @@ func Diff(entries []Entry, tagmap map[string]Set, queries []string) map[string]S
 
 // produce a Set reduced to the files covered by combined queries
 // TODO: handle comma separated groups as logical OR
-func ReduceFiles(tagmap map[string]Set, queries []string) Set {
+func IntersectQueries(tagmap map[string]Set, queries []string) Set {
 	set := Set{}
 	// sanity check:
 	if len(queries) < 1 {
@@ -316,15 +316,14 @@ func main() {
 
 	queries := ParseQuery(*query)
 	entries := Entries(*glob)
+
+	// we shrink the entries list immediately if we want a date range:
 	if *date != "" {
 		entries = Date(entries, *date)
 	}
 	tagmap := Tagmap(entries)
-	adjacencies := map[string]Set{}
-	if *verbose {
-		// TODO: should respect the Set as produced by ReduceFiles in the intersected case.
-		adjacencies = Adjacencies(entries)
-	}
+
+	// NOTE: these have to precede IntersectQueries because they expand the incoming tagmap:
 	if *grep {
 		tagmap = Grep(entries, tagmap, queries)
 	}
@@ -334,7 +333,16 @@ func main() {
 	if *diff {
 		tagmap = Diff(entries, tagmap, queries)
 	}
-	reducedf := ReduceFiles(tagmap, queries)
+
+	intersected := IntersectQueries(tagmap, queries)
+
+	// TODO: should respect the Set as produced by IntersectQueries:
+	adjacencies := map[string]Set{}
+	if *verbose {
+		adjacencies = Adjacencies(entries)
+	}
+	// TODO: making this unnecessary:
 	reducedadj := ReduceAdjacencies(adjacencies, queries)
-	Print(reducedf, reducedadj, queries, *verbose)
+
+	Print(intersected, reducedadj, queries, *verbose)
 }
