@@ -12,6 +12,17 @@ import (
 	"time"
 )
 
+// The layout string must be a representation of:
+// Jan 2 15:04:05 2006 MST
+// 1   2  3  4  5    6  -7
+const DATE_FORMAT = "2006.01.02"
+
+// ^: YYYY.DD.MM$
+const DATE_REGEXP = `(?m)^\: ([\.0-9]+?)$`
+
+// ^+ tag$
+const TAG_REGEXP = `(?m)^\+ (.+)$`
+
 type Entry struct {
 	filename string
 	date     time.Time
@@ -50,7 +61,7 @@ func ParseHeader(content *string) string {
 }
 
 func ParseTags(content *string) (tags []string) {
-	r, _ := regexp.Compile(`(?m)^\+ (.+)$`)
+	r, _ := regexp.Compile(TAG_REGEXP)
 	res := r.FindAllStringSubmatch(*content, -1)
 	for i := range res {
 		// group submatch is indexed at 1:
@@ -61,15 +72,12 @@ func ParseTags(content *string) (tags []string) {
 }
 
 func ParseDate(content *string) (time.Time, error) {
-	r, _ := regexp.Compile(`(?m)^\: ([\.0-9]+?)$`)
+	r, _ := regexp.Compile(DATE_REGEXP)
 	res := r.FindStringSubmatch(*content)
 	if len(res) < 2 {
 		return time.Time{}, errors.New("failed to find date string")
 	}
-	// The layout string must be a representation of:
-	// Jan 2 15:04:05 2006 MST
-	// 1   2  3  4  5    6  -7
-	return time.Parse("2006.01.02", res[1])
+	return time.Parse(DATE_FORMAT, res[1])
 }
 
 func ParseContent(filename string, content *string) Entry {
@@ -152,12 +160,12 @@ func Date(entries []Entry, date string) []Entry {
 
 	// when there's no range, the first string here will be the input:
 	f, t, ok := strings.Cut(date, "-")
-	from, _ = time.Parse("2006.01.02", f)
+	from, _ = time.Parse(DATE_FORMAT, f)
 	if ok {
-		to, _ = time.Parse("2006.01.02", t)
+		to, _ = time.Parse(DATE_FORMAT, t)
 	} else {
 		// use the from date for the case of a single date given:
-		to, _ = time.Parse("2006.01.02", f)
+		to, _ = time.Parse(DATE_FORMAT, f)
 	}
 	for _, e := range entries {
 		if from.Compare(e.date) <= 0 && 0 <= to.Compare(e.date) {
