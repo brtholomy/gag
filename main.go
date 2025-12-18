@@ -251,13 +251,7 @@ func PrintIntersections(intersections map[string]Set) {
 		}
 	}
 	slices.Sort(ordered_files)
-
-	// build up strings
-	var files string
-	for _, f := range ordered_files {
-		files += fmt.Sprintln(f)
-	}
-	fmt.Print(files)
+	fmt.Println(strings.Join(ordered_files, "\n"))
 }
 
 // prints out the complete and ordered collection of files, adjacencies, sums,
@@ -327,6 +321,7 @@ func main() {
 	go func() {
 		tmch <- Tagmap(entries)
 	}()
+	// TODO: only do this for the verbose case, or --adjacencies
 	go func() {
 		adch <- Adjacencies(entries)
 	}()
