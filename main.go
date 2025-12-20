@@ -128,8 +128,6 @@ func Tagmap(entries []Entry) map[string]Set {
 }
 
 // adjacencies is a map from tag to other tags occuring in all files.
-//
-// technically a map[tag]set : go's "set" being a map[T]bool.
 func Adjacencies(entries []Entry) map[string]Set {
 	adjacencies := map[string]Set{}
 
@@ -309,19 +307,19 @@ func main() {
 	var find = flag.Bool("find", false, "whether to show files containing the query as filename.")
 	var diff = flag.Bool("diff", false, "whether to omit files containing the query as tag.")
 	var verbose = flag.Bool("verbose", false, "whether to print out a verbose summary")
-	flag.Parse()
 
-	// take first positional arg as query:
-	// NOTE: all flags must precede: gag --grep arg
-	if *query == "" {
-		if len(flag.Args()) > 0 {
-			*query = flag.Args()[0]
-		} else {
-			flag.Usage()
-			return
-		}
+	// take first positional arg as --query arg without the flag.
+	// this solution allows trailing flags after the first positional arg.
+	// HACK: modifies os.Args before flag.Parse() :
+	if len(os.Args) <= 1 {
+		// TODO: possibly analyze the collection here, summarizing all tags
+		flag.Usage()
+		return
+	} else if len(os.Args) >= 2 && !strings.HasPrefix(os.Args[1], "-") {
+		// horrible slice interpolation expression:
+		os.Args = append(os.Args[:1], append([]string{"--query"}, os.Args[1:]...)...)
 	}
-
+	flag.Parse()
 	queries := ParseQuery(*query)
 	entries := Entries(*glob)
 
