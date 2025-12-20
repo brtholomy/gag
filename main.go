@@ -76,7 +76,7 @@ func Filelist(glob string) []string {
 	if err != nil {
 		filelist, err = filepath.Glob(glob)
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 	}
 	return filelist
@@ -132,7 +132,7 @@ func Entries(filelist []string) []Entry {
 	for _, f := range filelist {
 		dat, err := os.ReadFile(f)
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 		s := string(dat)
 		e := ParseContent(f, &s)
