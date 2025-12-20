@@ -4,6 +4,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -47,6 +49,37 @@ func Intersect(p Set, q Set) Set {
 		}
 	}
 	return r
+}
+
+func isStdinLoaded() bool {
+	stat, _ := os.Stdin.Stat()
+	return (stat.Mode() & os.ModeCharDevice) == 0
+}
+
+func GetStdin() ([]string, error) {
+	if !isStdinLoaded() {
+		return nil, errors.New("stdin not loaded")
+	}
+	data, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// TODO: there's got to be a better way:
+	s, _ := strings.CutSuffix(string(data), "\n")
+	return strings.Split(s, "\n"), nil
+}
+
+// reads files from stdin if present, otherwise from the glob pattern:
+func Filelist(glob string) []string {
+	filelist, err := GetStdin()
+	// otherwise get from the glob:
+	if err != nil {
+		filelist, err = filepath.Glob(glob)
+		if err != nil {
+			panic(err)
+		}
+	}
+	return filelist
 }
 
 // TODO: only accepts intersection syntax for now
@@ -93,14 +126,10 @@ func ParseContent(filename string, content *string) Entry {
 	}
 }
 
-func Entries(pattern string) []Entry {
-	files, err := filepath.Glob(pattern)
-	if err != nil {
-		panic(err)
-	}
+func Entries(filelist []string) []Entry {
 	// NOTE: size 0, capacity specified:
-	entries := make([]Entry, 0, len(files))
-	for _, f := range files {
+	entries := make([]Entry, 0, len(filelist))
+	for _, f := range filelist {
 		dat, err := os.ReadFile(f)
 		if err != nil {
 			panic(err)
@@ -320,8 +349,10 @@ func main() {
 		os.Args = append(os.Args[:1], append([]string{"--query"}, os.Args[1:]...)...)
 	}
 	flag.Parse()
+
 	queries := ParseQuery(*query)
-	entries := Entries(*glob)
+	filelist := Filelist(*glob)
+	entries := Entries(filelist)
 
 	// we shrink the entries list immediately if we want a date range:
 	if *date != "" {
