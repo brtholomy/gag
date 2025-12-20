@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -38,6 +39,11 @@ type Set map[string]bool
 // add a member to the "set"
 func (s Set) Add(k string) {
 	s[k] = true
+}
+
+// get all members in a slice
+func (s Set) Members() []string {
+	return slices.Collect(maps.Keys(s))
 }
 
 // intersect two sets
@@ -156,11 +162,14 @@ func Tagmap(entries []Entry) map[string]Set {
 	return tagmap
 }
 
-// adjacencies is a map from tag to other tags occuring in all files.
-func Adjacencies(entries []Entry) map[string]Set {
+// adjacencies is a map from tag to other tags occuring in the given files.
+func Adjacencies(entries []Entry, files Set) map[string]Set {
 	adjacencies := map[string]Set{}
 
 	for _, e := range entries {
+		if !files[e.filename] {
+			continue
+		}
 		for i, tag := range e.tags {
 			// make a slice copy but minus the current tag:
 			others := make([]string, len(e.tags))
@@ -269,13 +278,12 @@ func IntersectQueries(tagmap map[string]Set, queries []string) Set {
 	return set
 }
 
-// reduces adjacencies to relevant individual queries
-// TODO: does not reduce to + intersected queries
+// reduces adjacencies to a single Set not including the queries
 func ReduceAdjacencies(adjacencies map[string]Set, queries []string) Set {
 	reduced := Set{}
 	for _, query := range queries {
 		for tag, val := range adjacencies[query] {
-			if val {
+			if !slices.Contains(queries, tag) && val {
 				reduced.Add(tag)
 			}
 		}
@@ -312,12 +320,10 @@ func Print(files Set, adjacencies Set, queries []string, verbose bool) {
 	}
 
 	adj := fmt.Sprintln("[adjacencies]")
-	for t, _ := range adjacencies {
-		adj += fmt.Sprintln(t)
-	}
+	adj += fmt.Sprintln(strings.Join(adjacencies.Members(), "\n"))
 
 	sums := fmt.Sprintln("[sums]")
-	sums += fmt.Sprintln("files =", strings.Count(f, "\n"))
+	sums += fmt.Sprintln("files =", len(files))
 	sums += fmt.Sprintln("adjacencies =", len(adjacencies))
 
 	fmt.Println(filesstr)
@@ -372,14 +378,8 @@ func main() {
 	}
 
 	intersected := IntersectQueries(tagmap, queries)
+	// NOTE: the full Adjacencies map may one day be useful on its own
+	adjacencies := ReduceAdjacencies(Adjacencies(entries, intersected), queries)
 
-	// TODO: should respect the Set as produced by IntersectQueries:
-	adjacencies := map[string]Set{}
-	if *verbose {
-		adjacencies = Adjacencies(entries)
-	}
-	// TODO: making this unnecessary:
-	reducedadj := ReduceAdjacencies(adjacencies, queries)
-
-	Print(intersected, reducedadj, queries, *verbose)
+	Print(intersected, adjacencies, queries, *verbose)
 }
