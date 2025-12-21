@@ -36,9 +36,11 @@ type Entry struct {
 // convenience shorthand for this awkward map type.
 type Set map[string]bool
 
-// add a member to the "set"
-func (s Set) Add(k string) {
-	s[k] = true
+// add members to the "set"
+func (s Set) Add(mems ...string) {
+	for _, m := range mems {
+		s[m] = true
+	}
 }
 
 // get all members in a slice
@@ -278,10 +280,30 @@ func IntersectQueries(tagmap map[string]Set, queries []string) Set {
 	return set
 }
 
+// inverts the filelist using the full list from entries
+// NOTE: there are subtle differences between --diff and --invert I don't care about right now.
+// --diff works as intended with --grep and --find. this works with intersected queries.
+func Invert(entries []Entry, files Set) Set {
+	set := Set{}
+	for _, e := range entries {
+		if _, ok := files[e.filename]; !ok {
+			set.Add(e.filename)
+		}
+	}
+	return set
+}
+
 // reduces adjacencies to a single Set not including the queries
-func ReduceAdjacencies(adjacencies map[string]Set, queries []string) Set {
+func ReduceAdjacencies(adjacencies map[string]Set, queries []string, invert bool) Set {
 	reduced := Set{}
+	if invert {
+		// we just collect all keys to adjacencies here because they reflect all tags found in
+		// inverted filelist
+		reduced.Add(slices.Collect(maps.Keys(adjacencies))...)
+		return reduced
+	}
 	for _, query := range queries {
+		// NOTE: this will fail in the naive --invert case because adjacencies[query] won't exist:
 		for tag, val := range adjacencies[query] {
 			if !slices.Contains(queries, tag) && val {
 				reduced.Add(tag)
@@ -340,7 +362,8 @@ func main() {
 		"YYYY.MM.DD. May be a single date, or a range: YYYY.MM.DD-YYYY.MM.DD.")
 	var grep = flag.Bool("grep", false, "whether to show files containing the query as content.")
 	var find = flag.Bool("find", false, "whether to show files containing the query as filename.")
-	var diff = flag.Bool("diff", false, "whether to omit files containing the query as tag.")
+	var diff = flag.Bool("diff", false, "whether to omit files containing the query as tag when expanded with --find or --diff.")
+	var invert = flag.Bool("invert", false, "whether to invert the tag matching.")
 	var verbose = flag.Bool("verbose", false, "whether to print out a verbose summary")
 
 	// take first positional arg as --query arg without the flag.
@@ -377,9 +400,13 @@ func main() {
 		tagmap = Diff(entries, tagmap, queries)
 	}
 
-	intersected := IntersectQueries(tagmap, queries)
+	// IntersectQueries must precede Invert because we want Invert to respect combined tags:
+	files := IntersectQueries(tagmap, queries)
+	if *invert {
+		files = Invert(entries, files)
+	}
 	// NOTE: the full Adjacencies map may one day be useful on its own
-	adjacencies := ReduceAdjacencies(Adjacencies(entries, intersected), queries)
+	adjacencies := ReduceAdjacencies(Adjacencies(entries, files), queries, *invert)
 
-	Print(intersected, adjacencies, queries, *verbose)
+	Print(files, adjacencies, queries, *verbose)
 }
