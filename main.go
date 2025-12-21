@@ -213,54 +213,6 @@ func Date(entries []Entry, date string) []Entry {
 	return ranged
 }
 
-// extends the tagmap to include files which contain the query string, like grepping.
-func Grep(entries []Entry, tagmap map[string]Set, queries []string) map[string]Set {
-	for _, e := range entries {
-		for _, query := range queries {
-			// TODO: in the presence of multiple query strings, this is an OR.
-			// Should be an AND.
-			if strings.Contains(strings.ToLower(e.content), query) {
-				// allocate submap if necessary:
-				if _, ok := tagmap[query]; !ok {
-					tagmap[query] = Set{}
-				}
-				tagmap[query].Add(e.filename)
-			}
-		}
-	}
-	return tagmap
-}
-
-// extends the tagmap to include filenames which contain the query string, like find.
-func Find(entries []Entry, tagmap map[string]Set, queries []string) map[string]Set {
-	for _, e := range entries {
-		for _, query := range queries {
-			if strings.Contains(e.filename, query) {
-				// allocate submap if necessary:
-				if _, ok := tagmap[query]; !ok {
-					tagmap[query] = Set{}
-				}
-				tagmap[query].Add(e.filename)
-			}
-		}
-	}
-	return tagmap
-}
-
-// shrinks the tagmap to exclude filenames which contain the query as a tag.
-func Diff(entries []Entry, tagmap map[string]Set, queries []string) map[string]Set {
-	for _, e := range entries {
-		for _, query := range queries {
-			if slices.Contains(e.tags, query) {
-				if _, ok := tagmap[query]; ok {
-					delete(tagmap[query], e.filename)
-				}
-			}
-		}
-	}
-	return tagmap
-}
-
 // produce a Set reduced to the files covered by combined queries
 // TODO: handle comma separated groups as logical OR
 func IntersectQueries(tagmap map[string]Set, queries []string) Set {
@@ -280,9 +232,8 @@ func IntersectQueries(tagmap map[string]Set, queries []string) Set {
 	return set
 }
 
-// inverts the filelist using the full list from entries
-// NOTE: there are subtle differences between --diff and --invert I don't care about right now.
-// --diff works as intended with --grep and --find. this works with intersected queries.
+// inverts the filelist using the full list from entries. works with intersected queries as long as
+// IntersectQueries is called first.
 func Invert(entries []Entry, files Set) Set {
 	set := Set{}
 	for _, e := range entries {
@@ -360,9 +311,6 @@ func main() {
 		"This option may be passed implicitly as the first arg.")
 	var date = flag.String("date", "", "search for files matching a date given in ISO 8601: "+
 		"YYYY.MM.DD. May be a single date, or a range: YYYY.MM.DD-YYYY.MM.DD.")
-	var grep = flag.Bool("grep", false, "whether to show files containing the query as content.")
-	var find = flag.Bool("find", false, "whether to show files containing the query as filename.")
-	var diff = flag.Bool("diff", false, "whether to omit files containing the query as tag when expanded with --find or --diff.")
 	var invert = flag.Bool("invert", false, "whether to invert the tag matching.")
 	var verbose = flag.Bool("verbose", false, "whether to print out a verbose summary")
 
@@ -388,17 +336,6 @@ func main() {
 		entries = Date(entries, *date)
 	}
 	tagmap := Tagmap(entries)
-
-	// NOTE: these have to precede IntersectQueries because they expand the incoming tagmap:
-	if *grep {
-		tagmap = Grep(entries, tagmap, queries)
-	}
-	if *find {
-		tagmap = Find(entries, tagmap, queries)
-	}
-	if *diff {
-		tagmap = Diff(entries, tagmap, queries)
-	}
 
 	// IntersectQueries must precede Invert because we want Invert to respect combined tags:
 	files := IntersectQueries(tagmap, queries)
