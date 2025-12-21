@@ -3,7 +3,7 @@
 A little CLI tool for exploring my own writing, structured with the [UM schema](https://github.com/brtholomy/um).
 
 ```sh
-gag foo
+gag foo --verbose
 ```
 
 Response in the ./testdata dir, formatted like TOML:
@@ -16,21 +16,50 @@ Response in the ./testdata dir, formatted like TOML:
 foo
 
 [adjacencies]
-sot
+bar
 
 [sums]
 files = 1
 adjacencies = 1
 ```
 
-One of the most useful flags is `--pipe`:
+And plain:
+
 
 ```sh
-gag --query foo --pipe
+gag bar
 ```
 
-Which gives a simple list of files ready to be piped to `cat`:
+Output is ready to pipe:
 
 ```sh
-gag --query foo --pipe | xargs cat > /tmp/foo.md
+01.foo.md
+02.foo.md
+03.bar.md
 ```
+
+Like this:
+
+```sh
+gag foo | xargs cat > /tmp/foo.md
+```
+
+Also accepts piped input from stdin:
+
+```sh
+ls *foo*md | gag bar
+```
+
+And can therefore be chained:
+
+```sh
+gag foo | gag bar --invert
+```
+
+Tags can also be intersected:
+
+```sh
+gag foo+bar
+```
+
+See `--help` for all flags.

@@ -12,7 +12,7 @@ const TEST_PATTERN string = "./testdata/*.md"
 func TestParseHeader(t *testing.T) {
 	entries := Entries(Filelist(TEST_PATTERN))
 	header := ParseHeader(&entries[0].content)
-	expected := "# 01.foo.md\n: 2024.09.25\n+ sot\n+ foo"
+	expected := "# 01.foo.md\n: 2024.09.25\n+ bar\n+ foo"
 	assert.Equal(t, expected, header)
 }
 
@@ -27,7 +27,7 @@ func TestEntriesLen(t *testing.T) {
 func TestEntries(t *testing.T) {
 	entries := Entries(Filelist(TEST_PATTERN))
 	d, _ := time.Parse("2006.01.02", "2024.09.25")
-	expected := Entry{filename: "01.foo.md", date: d, content: "# 01.foo.md\n: 2024.09.25\n+ sot\n+ foo\n\nFoo bar.\n", tags: []string{"sot", "foo"}}
+	expected := Entry{filename: "01.foo.md", date: d, content: "# 01.foo.md\n: 2024.09.25\n+ bar\n+ foo\n\nFoo bar.\n", tags: []string{"bar", "foo"}}
 	assert.Equal(t, expected, entries[0])
 }
 
@@ -35,17 +35,17 @@ func TestTagmap(t *testing.T) {
 	entries := Entries(Filelist(TEST_PATTERN))
 	tagmap := Tagmap(entries)
 	expected := Set{"01.foo.md": true, "02.foo.md": true, "03.bar.md": true}
-	assert.Equal(t, expected, tagmap["sot"])
+	assert.Equal(t, expected, tagmap["bar"])
 }
 
 func TestAdjacencies(t *testing.T) {
 	entries := Entries(Filelist(TEST_PATTERN))
 	tagmap := Tagmap(entries)
-	queries := ParseQuery("sot")
+	queries := ParseQuery("bar")
 	fs := IntersectQueries(tagmap, queries)
 	adjacencies := Adjacencies(entries, fs)
 	expected := Set{"science": true, "foo": true}
-	assert.Equal(t, expected, adjacencies["sot"])
+	assert.Equal(t, expected, adjacencies["bar"])
 }
 
 func TestBadTag(t *testing.T) {

@@ -306,7 +306,7 @@ func Print(files Set, adjacencies Set, queries []string, verbose bool) {
 }
 
 func main() {
-	var glob = flag.String("glob", "./*md", "search for files with this glob pattern.")
+	var glob = flag.String("glob", "./*md", "search for files with this glob pattern. stdin if present will override.")
 	var query = flag.String("query", "", "search for files with the given tag(s). "+
 		"This option may be passed implicitly as the first arg.")
 	var date = flag.String("date", "", "search for files matching a date given in ISO 8601: "+
