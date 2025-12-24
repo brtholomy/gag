@@ -15,16 +15,30 @@ import (
 	"time"
 )
 
-// The layout string must be a representation of:
-// Jan 2 15:04:05 2006 MST
-// 1   2  3  4  5    6  -7
-const DATE_FORMAT = "2006.01.02"
+const (
+	// The layout string must be a representation of:
+	// Jan 2 15:04:05 2006 MST
+	// 1   2  3  4  5    6  -7
+	DATE_FORMAT = "2006.01.02"
 
-// ^: YYYY.DD.MM$
-const DATE_REGEXP = `(?m)^\: ([\.0-9]+?)$`
+	// ^: YYYY.DD.MM$
+	DATE_REGEXP = `(?m)^\: ([\.0-9]+?)$`
 
-// ^+ tag$
-const TAG_REGEXP = `(?m)^\+ (.+)$`
+	// ^+ tag$
+	TAG_REGEXP = `(?m)^\+ (.+)$`
+)
+
+type Operator string
+
+const (
+	OR  Operator = ","
+	AND Operator = "+"
+)
+
+type Query struct {
+	Op   Operator
+	Tags []string
+}
 
 type Entry struct {
 	filename string
@@ -41,6 +55,11 @@ func (s Set) Add(mems ...string) {
 	for _, m := range mems {
 		s[m] = true
 	}
+}
+
+// union s and u
+func (s Set) Union(u Set) {
+	s.Add(u.Members()...)
 }
 
 // get all members in a slice
@@ -90,9 +109,20 @@ func Filelist(glob string) []string {
 	return filelist
 }
 
-// TODO: only accepts intersection syntax for now
-func ParseQuery(query string) []string {
-	return strings.Split(query, "+")
+// TODO: only accepts one kind of syntax at a time
+func ParseQuery(query string) Query {
+	var q = Query{}
+	// NOTE: will match OR first
+	ops := []Operator{OR, AND}
+	for _, op := range ops {
+		if s := strings.Split(query, string(op)); len(s) > 1 {
+			q.Op = op
+			q.Tags = s
+			break
+		}
+
+	}
+	return q
 }
 
 func ParseHeader(content *string) string {
@@ -215,25 +245,63 @@ func Date(entries []Entry, date string) []Entry {
 
 // produce a Set reduced to the files covered by combined queries
 // TODO: handle comma separated groups as logical OR
-func IntersectQueries(tagmap map[string]Set, queries []string) Set {
+func ProcessQueries(tagmap map[string]Set, query Query) Set {
 	set := Set{}
 	// sanity check:
-	if len(queries) < 1 {
+	if len(query.Tags) < 1 {
 		return set
 	}
+	switch query.Op {
+	case OR:
+		set = UnionTags(tagmap, query)
+	case AND:
+		set = IntersectTags(tagmap, query)
+	}
+	return set
+}
+
+// produce a Set reduced to the files covered by combined queries
+// TODO: handle comma separated groups as logical OR
+func UnionTags(tagmap map[string]Set, query Query) Set {
+	set := Set{}
+	// sanity check:
+	if len(query.Tags) < 1 {
+		return set
+	}
+
 	// initialize as first query
-	q := queries[0]
+	q := query.Tags[0]
 	set = tagmap[q]
-	// when queries < 2, this won't run, and the Join will be identical to q
-	for i := 1; i < len(queries); i++ {
-		q = queries[i]
+	// when queries < 2, this won't run
+	for i := 1; i < len(query.Tags); i++ {
+		q = query.Tags[i]
+		set.Union(tagmap[q])
+	}
+	return set
+}
+
+// produce a Set reduced to the files covered by combined queries
+// TODO: handle comma separated groups as logical OR
+func IntersectTags(tagmap map[string]Set, query Query) Set {
+	set := Set{}
+	// sanity check:
+	if len(query.Tags) < 1 {
+		return set
+	}
+
+	// initialize as first query
+	q := query.Tags[0]
+	set = tagmap[q]
+	// when queries < 2, this won't run, and the Intersect will be identical to q
+	for i := 1; i < len(query.Tags); i++ {
+		q = query.Tags[i]
 		set = Intersect(set, tagmap[q])
 	}
 	return set
 }
 
 // inverts the filelist using the full list from entries. works with intersected queries as long as
-// IntersectQueries is called first.
+// ProcessQueries is called first.
 func Invert(entries []Entry, files Set) Set {
 	set := Set{}
 	for _, e := range entries {
@@ -278,7 +346,7 @@ func SprintFiles(files Set) string {
 // and original query tags.
 //
 // format is a TOML syntax possibly useful elsewhere.
-func Print(files Set, adjacencies Set, queries []string, verbose bool) {
+func Print(files Set, adjacencies Set, query Query, verbose bool) {
 	f := SprintFiles(files)
 	if !verbose {
 		fmt.Print(f)
@@ -288,7 +356,7 @@ func Print(files Set, adjacencies Set, queries []string, verbose bool) {
 	filesstr += f
 
 	tags := fmt.Sprintln("[tags]")
-	for _, q := range queries {
+	for _, q := range query.Tags {
 		tags += fmt.Sprintln(q)
 	}
 
@@ -337,13 +405,14 @@ func main() {
 	}
 	tagmap := Tagmap(entries)
 
-	// IntersectQueries must precede Invert because we want Invert to respect combined tags:
-	files := IntersectQueries(tagmap, queries)
+	// ProcessQueries must precede Invert because we want Invert to respect combined tags:
+	files := ProcessQueries(tagmap, queries)
 	if *invert {
 		files = Invert(entries, files)
 	}
 	// NOTE: the full Adjacencies map may one day be useful on its own
-	adjacencies := ReduceAdjacencies(Adjacencies(entries, files), queries, *invert)
+	// adjacencies := ReduceAdjacencies(Adjacencies(entries, files), queries, *invert)
+	adjacencies := Set{}
 
 	Print(files, adjacencies, queries, *verbose)
 }
