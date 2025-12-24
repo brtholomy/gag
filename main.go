@@ -251,23 +251,6 @@ func ProcessQueries(tagmap map[string]Set, query Query) Set {
 	if len(query.Tags) < 1 {
 		return set
 	}
-	switch query.Op {
-	case OR:
-		set = UnionTags(tagmap, query)
-	case AND:
-		set = IntersectTags(tagmap, query)
-	}
-	return set
-}
-
-// produce a Set reduced to the files covered by combined queries
-// TODO: handle comma separated groups as logical OR
-func UnionTags(tagmap map[string]Set, query Query) Set {
-	set := Set{}
-	// sanity check:
-	if len(query.Tags) < 1 {
-		return set
-	}
 
 	// initialize as first query
 	q := query.Tags[0]
@@ -275,27 +258,12 @@ func UnionTags(tagmap map[string]Set, query Query) Set {
 	// when queries < 2, this won't run
 	for i := 1; i < len(query.Tags); i++ {
 		q = query.Tags[i]
-		set.Union(tagmap[q])
-	}
-	return set
-}
-
-// produce a Set reduced to the files covered by combined queries
-// TODO: handle comma separated groups as logical OR
-func IntersectTags(tagmap map[string]Set, query Query) Set {
-	set := Set{}
-	// sanity check:
-	if len(query.Tags) < 1 {
-		return set
-	}
-
-	// initialize as first query
-	q := query.Tags[0]
-	set = tagmap[q]
-	// when queries < 2, this won't run, and the Intersect will be identical to q
-	for i := 1; i < len(query.Tags); i++ {
-		q = query.Tags[i]
-		set = Intersect(set, tagmap[q])
+		switch query.Op {
+		case OR:
+			set.Union(tagmap[q])
+		case AND:
+			set = Intersect(set, tagmap[q])
+		}
 	}
 	return set
 }
