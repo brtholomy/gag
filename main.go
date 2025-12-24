@@ -58,25 +58,23 @@ func (s Set) Add(mems ...string) {
 	}
 }
 
-// union s and u
-func (s Set) Union(u Set) {
-	s.Add(u.Members()...)
-}
-
 // get all members in a slice
 func (s Set) Members() []string {
 	return slices.Collect(maps.Keys(s))
 }
 
-// intersect two sets
-func Intersect(p Set, q Set) Set {
-	r := Set{}
-	for m, _ := range p {
-		if q[m] {
-			r.Add(m)
+// s ∪ t
+func (s Set) Union(t Set) {
+	s.Add(t.Members()...)
+}
+
+// s ∩ t
+func (s Set) Intersect(t Set) {
+	for m, _ := range s {
+		if !t[m] {
+			delete(s, m)
 		}
 	}
-	return r
 }
 
 func isStdinLoaded() bool {
@@ -266,7 +264,7 @@ func ProcessQueries(tagmap map[string]Set, query Query) Set {
 		case OR:
 			set.Union(tagmap[q])
 		case AND:
-			set = Intersect(set, tagmap[q])
+			set.Intersect(tagmap[q])
 		}
 	}
 	return set
