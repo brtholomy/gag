@@ -42,7 +42,7 @@ func TestAdjacencies(t *testing.T) {
 	entries := Entries(Filelist(TEST_PATTERN))
 	tagmap := Tagmap(entries)
 	queries := ParseQuery("bar")
-	fs := IntersectQueries(tagmap, queries)
+	fs := ProcessQueries(tagmap, queries)
 	adjacencies := Adjacencies(entries, fs)
 	expected := Set{"science": true, "foo": true}
 	assert.Equal(t, expected, adjacencies["bar"])
@@ -75,7 +75,7 @@ func BenchmarkAdjacencies(b *testing.B) {
 	entries := Entries(Filelist(TEST_PATTERN))
 	tagmap := Tagmap(entries)
 	queries := ParseQuery("foo")
-	fs := IntersectQueries(tagmap, queries)
+	fs := ProcessQueries(tagmap, queries)
 	for b.Loop() {
 		Adjacencies(entries, fs)
 	}
