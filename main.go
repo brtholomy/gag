@@ -31,8 +31,9 @@ const (
 type Operator string
 
 const (
-	OR  Operator = ","
-	AND Operator = "+"
+	EMPTY Operator = ""
+	OR    Operator = ","
+	AND   Operator = "+"
 )
 
 type Query struct {
@@ -111,7 +112,11 @@ func Filelist(glob string) []string {
 
 // TODO: only accepts one kind of syntax at a time
 func ParseQuery(query string) Query {
-	var q = Query{}
+	// initialize for the single tag case:
+	q := Query{
+		Op:   EMPTY,
+		Tags: []string{query},
+	}
 	// NOTE: will match OR first
 	ops := []Operator{OR, AND}
 	for _, op := range ops {
@@ -244,7 +249,6 @@ func Date(entries []Entry, date string) []Entry {
 }
 
 // produce a Set reduced to the files covered by combined queries
-// TODO: handle comma separated groups as logical OR
 func ProcessQueries(tagmap map[string]Set, query Query) Set {
 	set := Set{}
 	// sanity check:
@@ -281,7 +285,7 @@ func Invert(entries []Entry, files Set) Set {
 }
 
 // reduces adjacencies to a single Set not including the queries
-func ReduceAdjacencies(adjacencies map[string]Set, queries []string, invert bool) Set {
+func ReduceAdjacencies(adjacencies map[string]Set, query Query, invert bool) Set {
 	reduced := Set{}
 	if invert {
 		// we just collect all keys to adjacencies here because they reflect all tags found in
@@ -289,10 +293,10 @@ func ReduceAdjacencies(adjacencies map[string]Set, queries []string, invert bool
 		reduced.Add(slices.Collect(maps.Keys(adjacencies))...)
 		return reduced
 	}
-	for _, query := range queries {
-		// NOTE: this will fail in the naive --invert case because adjacencies[query] won't exist:
-		for tag, val := range adjacencies[query] {
-			if !slices.Contains(queries, tag) && val {
+	for _, tag := range query.Tags {
+		// NOTE: this will fail in the naive --invert case because adjacencies[tag] won't exist:
+		for tag, val := range adjacencies[tag] {
+			if !slices.Contains(query.Tags, tag) && val {
 				reduced.Add(tag)
 			}
 		}
@@ -379,8 +383,7 @@ func main() {
 		files = Invert(entries, files)
 	}
 	// NOTE: the full Adjacencies map may one day be useful on its own
-	// adjacencies := ReduceAdjacencies(Adjacencies(entries, files), queries, *invert)
-	adjacencies := Set{}
+	adjacencies := ReduceAdjacencies(Adjacencies(entries, files), queries, *invert)
 
 	Print(files, adjacencies, queries, *verbose)
 }
