@@ -197,35 +197,6 @@ func Tagmap(entries []Entry) map[string]Set {
 	return tagmap
 }
 
-// adjacencies is a map from tag to a map of other tags occuring in the given files.
-func Adjacencies(entries []Entry, files Set) map[string]map[string]Set {
-	adjacencies := map[string]map[string]Set{}
-
-	for _, e := range entries {
-		if !files[e.filename] {
-			continue
-		}
-		for i, tag := range e.tags {
-			// make a slice copy but minus the current tag:
-			others := make([]string, len(e.tags))
-			copy(others, e.tags)
-			others = slices.Delete(others, i, i+1)
-
-			// allocate submap if necessary:
-			if _, ok := adjacencies[tag]; !ok {
-				adjacencies[tag] = map[string]Set{}
-			}
-			for _, other := range others {
-				if _, ok := adjacencies[tag][other]; !ok {
-					adjacencies[tag][other] = Set{}
-				}
-				adjacencies[tag][other].Add(e.filename)
-			}
-		}
-	}
-	return adjacencies
-}
-
 // shrinks the entries to only include files within a date range.
 func Date(entries []Entry, date string) []Entry {
 	// deleting from the old slice would be less efficient than appending to a new one:
@@ -284,6 +255,36 @@ func Invert(entries []Entry, files Set) Set {
 		}
 	}
 	return set
+}
+
+// adjacencies is a map from tag to a map of other tags occuring in the given files.
+func Adjacencies(entries []Entry, files Set) map[string]map[string]Set {
+	adjacencies := map[string]map[string]Set{}
+
+	for _, e := range entries {
+		// NOTE: this allows for a filelist shrunk after entries slice was made:
+		if !files[e.filename] {
+			continue
+		}
+		for i, tag := range e.tags {
+			// make a slice copy but minus the current tag:
+			others := make([]string, len(e.tags))
+			copy(others, e.tags)
+			others = slices.Delete(others, i, i+1)
+
+			// allocate submap if necessary:
+			if _, ok := adjacencies[tag]; !ok {
+				adjacencies[tag] = map[string]Set{}
+			}
+			for _, other := range others {
+				if _, ok := adjacencies[tag][other]; !ok {
+					adjacencies[tag][other] = Set{}
+				}
+				adjacencies[tag][other].Add(e.filename)
+			}
+		}
+	}
+	return adjacencies
 }
 
 // reduces adjacencies to a single map[tag]Set not including the query tags
