@@ -259,7 +259,8 @@ func ProcessQueries(tagmap map[string]Set, query Query) Set {
 
 	// initialize as first query
 	q := query.Tags[0]
-	set = tagmap[q]
+	// NOTE: clone so that we don't accidentally overwrite the incoming tagmap
+	set = maps.Clone(tagmap[q])
 	// when queries < 2, this won't run
 	for i := 1; i < len(query.Tags); i++ {
 		q = query.Tags[i]
