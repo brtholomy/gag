@@ -286,16 +286,14 @@ func Invert(entries []Entry, files Set) Set {
 func ReduceAdjacencies(adjacencies map[string]Set, query Query, invert bool) Set {
 	reduced := Set{}
 	if invert {
-		// we just collect all keys to adjacencies here because they reflect all tags found in
-		// inverted filelist
+		// adjacencies keys will already reflect all tags built from an inverted filelist
 		reduced.Add(slices.Collect(maps.Keys(adjacencies))...)
 		return reduced
 	}
-	for _, tag := range query.Tags {
-		// NOTE: this will fail in the naive --invert case because adjacencies[tag] won't exist:
-		for tag, val := range adjacencies[tag] {
-			if !slices.Contains(query.Tags, tag) && val {
-				reduced.Add(tag)
+	for _, tag_i := range query.Tags {
+		for tag_y, val := range adjacencies[tag_i] {
+			if !slices.Contains(query.Tags, tag_y) && val {
+				reduced.Add(tag_y)
 			}
 		}
 	}
@@ -316,7 +314,7 @@ func SprintFiles(files Set) string {
 // and original query tags.
 //
 // format is a TOML syntax possibly useful elsewhere.
-func Print(files Set, adjacencies Set, query Query, verbose bool) {
+func Print(tagmap map[string]Set, files Set, adjacencies Set, query Query, verbose bool) {
 	f := SprintFiles(files)
 	if !verbose {
 		fmt.Print(f)
@@ -327,15 +325,18 @@ func Print(files Set, adjacencies Set, query Query, verbose bool) {
 
 	tags := fmt.Sprintln("[tags]")
 	for _, q := range query.Tags {
-		tags += fmt.Sprintln(q)
+		tags += fmt.Sprintf("%-20s= %d\n", q, len(tagmap[q]))
 	}
 
 	adj := fmt.Sprintln("[adjacencies]")
-	adj += fmt.Sprintln(strings.Join(adjacencies.Members(), "\n"))
+	for tag, _ := range adjacencies {
+		// TODO: this is an absolute count of all files containing the tag, not intersections:
+		adj += fmt.Sprintf("%-20s= %d\n", tag, len(tagmap[tag]))
+	}
 
 	sums := fmt.Sprintln("[sums]")
-	sums += fmt.Sprintln("files =", len(files))
-	sums += fmt.Sprintln("adjacencies =", len(adjacencies))
+	sums += fmt.Sprintln("files               =", len(files))
+	sums += fmt.Sprintln("adjacencies         =", len(adjacencies))
 
 	fmt.Println(filesstr)
 	fmt.Println(tags)
@@ -383,5 +384,5 @@ func main() {
 	// NOTE: the full Adjacencies map may one day be useful on its own
 	adjacencies := ReduceAdjacencies(Adjacencies(entries, files), queries, *invert)
 
-	Print(files, adjacencies, queries, *verbose)
+	Print(tagmap, files, adjacencies, queries, *verbose)
 }
