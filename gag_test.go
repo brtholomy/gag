@@ -44,7 +44,10 @@ func TestAdjacencies(t *testing.T) {
 	queries := ParseQuery("bar")
 	fs := ProcessQueries(tagmap, queries)
 	adjacencies := Adjacencies(entries, fs)
-	expected := Set{"science": true, "foo": true}
+	expected := map[string]Set{
+		"foo":     Set{"01.foo.md": true},
+		"science": Set{"02.foo.md": true, "03.bar.md": true},
+	}
 	assert.Equal(t, expected, adjacencies["bar"])
 }
 
