@@ -290,6 +290,20 @@ func Adjacencies(entries []Entry, files Set) map[string]map[string]Set {
 // reduces adjacencies to a single map[tag]Set not including the query tags
 func ReduceAdjacencies(adjacencies map[string]map[string]Set, query Query, invert bool) map[string]Set {
 	reduced := map[string]Set{}
+	if invert {
+		// TODO: something's wrong here...
+		// adjacencies keys will already reflect all tags built from an inverted filelist
+		for _, adjmap := range adjacencies {
+			for adj, files := range adjmap {
+				if _, ok := reduced[adj]; !ok {
+					reduced[adj] = Set{}
+				}
+				reduced[adj].Union(files)
+			}
+		}
+
+		return reduced
+	}
 	for _, qtag := range query.Tags {
 		for adjtag, files := range adjacencies[qtag] {
 			if !slices.Contains(query.Tags, adjtag) {
@@ -333,6 +347,7 @@ func Print(entries []Entry, tagmap map[string]Set, files Set, adjacencies map[st
 
 	adj := fmt.Sprintln("[adjacencies]")
 	for tag, fs := range adjacencies {
+		// TODO: something's fucky about these len() with --invert :
 		adj += fmt.Sprintf("%-20s= %-3d : %d\n", tag, len(fs), len(tagmap[tag]))
 	}
 
