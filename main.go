@@ -31,9 +31,10 @@ const (
 type Operator string
 
 const (
-	EMPTY Operator = ""
-	OR    Operator = ","
-	AND   Operator = "+"
+	SINGLE Operator = ""
+	OR     Operator = ","
+	AND    Operator = "+"
+	WILD   Operator = "*"
 )
 
 type Query struct {
@@ -64,8 +65,10 @@ func (s Set) Members() []string {
 }
 
 // s ∪ t
-func (s Set) Union(t Set) {
-	s.Add(t.Members()...)
+func (s Set) Union(tt ...Set) {
+	for _, t := range tt {
+		s.Add(t.Members()...)
+	}
 }
 
 // s ∩ t
@@ -112,8 +115,14 @@ func Filelist(glob string) []string {
 func ParseQuery(query string) Query {
 	// initialize for the single tag case:
 	q := Query{
-		Op:   EMPTY,
+		Op:   SINGLE,
 		Tags: []string{query},
+	}
+	// count a missing tag as WILD:
+	if query == "" {
+		// TODO: somewhat abusing this concept for the empty query case:
+		q.Op = WILD
+		return q
 	}
 	// NOTE: will match OR first
 	ops := []Operator{OR, AND}
@@ -230,6 +239,15 @@ func ProcessQueries(tagmap map[string]Set, query Query) Set {
 
 	// initialize as first query
 	q := query.Tags[0]
+
+	// empty query
+	// TODO: do I want to handle WILD and a tag? Actual regex?
+	if query.Op == WILD && q == "" {
+		// NOTE: this is all files with at least one tag and therefore of value:
+		set.Union(slices.Collect(maps.Values(tagmap))...)
+		return set
+	}
+
 	// NOTE: clone so that we don't accidentally overwrite the incoming tagmap
 	set = maps.Clone(tagmap[q])
 	// when queries < 2, this won't run
@@ -341,8 +359,16 @@ func Print(entries []Entry, tagmap map[string]Set, files Set, adjacencies map[st
 	filesstr += f
 
 	tags := fmt.Sprintln("[tags]")
-	for _, q := range query.Tags {
-		tags += fmt.Sprintf("%-20s= %d\n", q, len(tagmap[q]))
+	// TODO: there's code smell about this whole approach.
+	if query.Op == WILD {
+		for q, s := range tagmap {
+			// TODO: sorting by len(s) would be nice:
+			tags += fmt.Sprintf("%-20s= %d\n", q, len(s))
+		}
+	} else {
+		for _, q := range query.Tags {
+			tags += fmt.Sprintf("%-20s= %d\n", q, len(tagmap[q]))
+		}
 	}
 
 	adj := fmt.Sprintln("[adjacencies]")
@@ -372,12 +398,9 @@ func main() {
 
 	// take first positional arg as --query arg without the flag.
 	// this solution allows trailing flags after the first positional arg.
+	// NOTE: we ignore the case len(os.Args) <= 1 because we catch it in ParseQuery. Messy.
 	// HACK: modifies os.Args before flag.Parse() :
-	if len(os.Args) <= 1 {
-		// TODO: possibly analyze the collection here, summarizing all tags
-		flag.Usage()
-		return
-	} else if len(os.Args) >= 2 && !strings.HasPrefix(os.Args[1], "-") {
+	if len(os.Args) >= 2 && !strings.HasPrefix(os.Args[1], "-") {
 		// horrible slice interpolation expression:
 		os.Args = append(os.Args[:1], append([]string{"--query"}, os.Args[1:]...)...)
 	}
