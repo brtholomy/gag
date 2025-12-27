@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"testing"
 	"time"
 
@@ -51,6 +52,34 @@ func TestAdjacencies(t *testing.T) {
 	assert.Equal(t, expected, adjacencies["bar"])
 }
 
+func TestPrint(t *testing.T) {
+	entries := Entries(Filelist(TEST_PATTERN))
+	tagmap := Tagmap(entries)
+	query := ParseQuery("bar")
+	fs := ProcessQueries(tagmap, query)
+	adjacencies := ReduceAdjacencies(Adjacencies(entries, fs), query, false)
+	buf := bytes.Buffer{}
+	Print(&buf, entries, tagmap, fs, adjacencies, query, true)
+	expected := `[files]
+01.foo.md
+02.foo.md
+03.bar.md
+
+[tags]
+bar                 = 3
+
+[adjacencies]
+foo                 = 1   : 1
+science             = 2   : 3
+
+[sums]
+files               = 3   : 6
+adjacencies         = 2   : 4
+
+`
+	assert.Equal(t, expected, buf.String())
+}
+
 func TestBadTag(t *testing.T) {
 	entries := Entries(Filelist(TEST_PATTERN))
 	tagmap := Tagmap(entries)
@@ -81,6 +110,18 @@ func BenchmarkAdjacencies(b *testing.B) {
 	fs := ProcessQueries(tagmap, queries)
 	for b.Loop() {
 		Adjacencies(entries, fs)
+	}
+}
+
+func BenchmarkPrint(b *testing.B) {
+	entries := Entries(Filelist(TEST_PATTERN))
+	tagmap := Tagmap(entries)
+	query := ParseQuery("bar")
+	fs := ProcessQueries(tagmap, query)
+	adjacencies := ReduceAdjacencies(Adjacencies(entries, fs), query, false)
+	buf := bytes.Buffer{}
+	for b.Loop() {
+		Print(&buf, entries, tagmap, fs, adjacencies, query, true)
 	}
 }
 

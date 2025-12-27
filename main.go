@@ -374,7 +374,7 @@ func OrderedTags(tagmap map[string]Set, query Query) []Tag {
 // and original query tags.
 //
 // format is a TOML syntax possibly useful elsewhere.
-func Print(entries []Entry, tagmap map[string]Set, files Set, adjacencies map[string]Set, query Query, verbose bool) {
+func Print(w io.Writer, entries []Entry, tagmap map[string]Set, files Set, adjacencies map[string]Set, query Query, verbose bool) {
 	f := SprintFiles(files)
 	if !verbose {
 		fmt.Print(f)
@@ -408,10 +408,10 @@ func Print(entries []Entry, tagmap map[string]Set, files Set, adjacencies map[st
 	sums += fmt.Sprintf("files               = %-3d : %d\n", len(files), len(entries))
 	sums += fmt.Sprintf("adjacencies         = %-3d : %d\n", len(adjacencies), len(tagmap))
 
-	fmt.Println(filesstr)
-	fmt.Println(tags)
-	fmt.Println(adj)
-	fmt.Println(sums)
+	fmt.Fprintln(w, filesstr)
+	fmt.Fprintln(w, tags)
+	fmt.Fprintln(w, adj)
+	fmt.Fprintln(w, sums)
 }
 
 func main() {
@@ -451,5 +451,5 @@ func main() {
 	// NOTE: the full Adjacencies map may one day be useful on its own
 	adjacencies := ReduceAdjacencies(Adjacencies(entries, files), queries, *invert)
 
-	Print(entries, tagmap, files, adjacencies, queries, *verbose)
+	Print(os.Stdout, entries, tagmap, files, adjacencies, queries, *verbose)
 }
