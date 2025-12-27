@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"errors"
 	"flag"
 	"fmt"
@@ -47,6 +48,11 @@ type Entry struct {
 	date     time.Time
 	content  string
 	tags     []string
+}
+
+type Tag struct {
+	name  string
+	count int
 }
 
 // convenience shorthand for this awkward map type.
@@ -345,6 +351,24 @@ func SprintFiles(files Set) string {
 	return fmt.Sprintln(strings.Join(ordered_files, "\n"))
 }
 
+func OrderedTags(tagmap map[string]Set, query Query) []Tag {
+	ordered_tags := []Tag{}
+	// TODO: there's code smell about this whole approach.
+	if query.Op == WILD {
+		for q, s := range tagmap {
+			ordered_tags = append(ordered_tags, Tag{q, len(s)})
+		}
+	} else {
+		for _, q := range query.Tags {
+			ordered_tags = append(ordered_tags, Tag{q, len(tagmap[q])})
+		}
+	}
+	slices.SortFunc(ordered_tags, func(i, j Tag) int {
+		return cmp.Compare(i.count, j.count)
+	})
+	return ordered_tags
+}
+
 // prints out the complete and ordered collection of files, adjacencies, sums,
 // and original query tags.
 //
@@ -359,16 +383,9 @@ func Print(entries []Entry, tagmap map[string]Set, files Set, adjacencies map[st
 	filesstr += f
 
 	tags := fmt.Sprintln("[tags]")
-	// TODO: there's code smell about this whole approach.
-	if query.Op == WILD {
-		for q, s := range tagmap {
-			// TODO: sorting by len(s) would be nice:
-			tags += fmt.Sprintf("%-20s= %d\n", q, len(s))
-		}
-	} else {
-		for _, q := range query.Tags {
-			tags += fmt.Sprintf("%-20s= %d\n", q, len(tagmap[q]))
-		}
+	ordered_tags := OrderedTags(tagmap, query)
+	for _, t := range ordered_tags {
+		tags += fmt.Sprintf("%-20s= %d\n", t.name, t.count)
 	}
 
 	adj := fmt.Sprintln("[adjacencies]")
