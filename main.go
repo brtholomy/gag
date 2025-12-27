@@ -50,6 +50,8 @@ type Entry struct {
 	tags     []string
 }
 
+// TODO: consider using this in tagmap and adjacencies. Currently only for printed results for the
+// sake of slices.SortFunc
 type Tag struct {
 	name  string
 	count int
@@ -383,15 +385,16 @@ func Print(entries []Entry, tagmap map[string]Set, files Set, adjacencies map[st
 	filesstr += f
 
 	tags := fmt.Sprintln("[tags]")
-	ordered_tags := OrderedTags(tagmap, query)
-	for _, t := range ordered_tags {
+	otags := OrderedTags(tagmap, query)
+	for _, t := range otags {
 		tags += fmt.Sprintf("%-20s= %d\n", t.name, t.count)
 	}
 
 	adj := fmt.Sprintln("[adjacencies]")
-	for tag, fs := range adjacencies {
+	oadj := OrderedTags(adjacencies, Query{WILD, []string{}})
+	for _, t := range oadj {
 		// TODO: something's fucky about these len() with --invert :
-		adj += fmt.Sprintf("%-20s= %-3d : %d\n", tag, len(fs), len(tagmap[tag]))
+		adj += fmt.Sprintf("%-20s= %-3d : %d\n", t.name, t.count, len(tagmap[t.name]))
 	}
 
 	sums := fmt.Sprintln("[sums]")
