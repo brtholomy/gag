@@ -345,10 +345,8 @@ func ReduceAdjacencies(adjacencies map[string]map[string]Set, query Query, inver
 
 // prints out the intersected tagmap
 func SprintFiles(files Set) string {
-	ordered_files := []string{}
-	for f, _ := range files {
-		ordered_files = append(ordered_files, f)
-	}
+	ordered_files := make([]string, 0, len(files))
+	copy(ordered_files, slices.Collect(maps.Keys(files)))
 	slices.Sort(ordered_files)
 	return fmt.Sprintln(strings.Join(ordered_files, "\n"))
 }
