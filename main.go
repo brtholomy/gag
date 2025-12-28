@@ -29,6 +29,10 @@ const (
 	TAG_REGEXP = `(?m)^\+ (.+)$`
 )
 
+// regexp.Compile is by far the most expensive operation of ParseContent:
+var dateRegexp *regexp.Regexp = regexp.MustCompile(DATE_REGEXP)
+var tagRegexp *regexp.Regexp = regexp.MustCompile(TAG_REGEXP)
+
 type Operator string
 
 const (
@@ -152,8 +156,7 @@ func ParseHeader(content *string) string {
 }
 
 func ParseTags(content *string) (tags []string) {
-	r, _ := regexp.Compile(TAG_REGEXP)
-	res := r.FindAllStringSubmatch(*content, -1)
+	res := tagRegexp.FindAllStringSubmatch(*content, -1)
 	for i := range res {
 		// group submatch is indexed at 1:
 		// this shouldn't ever fail if there's a result:
@@ -163,8 +166,7 @@ func ParseTags(content *string) (tags []string) {
 }
 
 func ParseDate(content *string) (time.Time, error) {
-	r, _ := regexp.Compile(DATE_REGEXP)
-	res := r.FindStringSubmatch(*content)
+	res := dateRegexp.FindStringSubmatch(*content)
 	if len(res) < 2 {
 		return time.Time{}, errors.New("failed to find date string")
 	}
