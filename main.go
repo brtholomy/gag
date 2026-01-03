@@ -192,7 +192,7 @@ func Entries(filelist []string) []Entry {
 	for _, f := range filelist {
 		dat, err := os.ReadFile(f)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal(fmt.Errorf("gag: error opening file: %s\n%w", f, err))
 		}
 		s := string(dat)
 		e := ParseContent(f, &s)
